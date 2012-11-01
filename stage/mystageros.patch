@@ -1,0 +1,353 @@
+--- stageros.cpp.orig	2012-11-01 10:25:57.551149120 +0200
++++ stageros.cpp	2012-11-01 12:03:25.032145178 +0200
+@@ -70,6 +70,11 @@
+     // A mutex to lock access to fields that are used in message callbacks
+     boost::mutex msg_lock;
+ 
++    //!!! add these vectors
++    // mappings between laser and robot numbers
++    std::vector<int> laser2robot; // Mapping from laser to robot
++    std::vector<int> robot2laser; // Mapping from robot to the first laser of that robo
++
+     // The models that we're interested in
+     std::vector<Stg::ModelRanger *> lasermodels;
+     std::vector<Stg::ModelPosition *> positionmodels;
+@@ -79,10 +84,24 @@
+     std::vector<ros::Subscriber> cmdvel_subs_;
+     ros::Publisher clock_pub_;
+ 
+-    // A helper function that is executed for each stage model.  We use it
+-    // to search for models of interest.
+-    static void ghfunc(Stg::Model* mod, StageNode* node);
++//    static void ghfunc(Stg::Model* mod, StageNode* node);
+ 
++    // These helper functions generate positionmodels, lasermodels, laser2robot
++    // and robot2laser lists
++    //
++    // addRobot helper function called for all models in world and picking out
++    // robot models and calling recursively addLaser
++    //
++    // addLaser picks out laser models
++    //
++    // This call structure is needed to ensure generation of proper mapping
++    // lists laser2robot and robot2laser, because we can not rely on the order
++    // in which ForEachModel passes models to the handler. In newer versions of
++    // stage it gets easier because we can use ForEachDescendent to do that
++    // work in a more sane way.
++    static void addRobot(Stg::Model* mod, StageNode* node);
++    static void addLaser(Stg::Model* mod, StageNode* node);
++ 
+     static bool s_update(Stg::World* world, StageNode* node)
+     {
+       node->WorldCallback();
+@@ -93,7 +112,13 @@
+ 
+     // Appends the given robot ID to the given message name.  If omitRobotID
+     // is true, an unaltered copy of the name is returned.
+-    const char *mapName(const char *name, size_t robotID);
++    //!!! add new mapping methods: use mapRobotName and mapLaserName ONLY!
++    const char *mapName(const char *name, size_t robotID, size_t laserID);
++    const char *mapRobotName(const char *name, int robotIndex);
++    const char *mapLaserName(const char *name, int laserIndex);
++
++    void mapAddRobot();
++    void mapAddLaser();
+ 
+     tf::TransformBroadcaster tf;
+ 
+@@ -131,25 +156,92 @@
+ 
+ // since stageros is single-threaded, this is OK. revisit if that changes!
+ const char *
+-StageNode::mapName(const char *name, size_t robotID)
++StageNode::mapName(const char *name, size_t robotID, size_t laserID)
+ {
+-  if (positionmodels.size() > 1)
+-  {
+-    static char buf[100];
+-    snprintf(buf, sizeof(buf), "/robot_%u/%s", (unsigned int)robotID, name);
+-    return buf;
+-  }
+-  else
+-    return name;
++  // Add the robot's name
++  char srobot[16] = "";
++  if(robotID != -1)
++      snprintf(srobot, sizeof(srobot), "/robot_%d/", robotID);
++  ROS_WARN_STREAM("robotname: " << srobot);
++  // Add the laser index
++  char sindex[4] = "";
++  if(laserID != -1)
++      snprintf(sindex, sizeof(sindex), "%d", laserID);
++  ROS_WARN_STREAM("sindex: " << sindex);
++
++  static char buf[100];
++  snprintf(buf, sizeof(buf), "%s%s%s", srobot, name, sindex);
++
++  return buf;
++}
++
++// since stageros is single-threaded, this is OK. revisit if that changes!
++const char *
++StageNode::mapRobotName(const char *name, int robotIndex)
++{
++    return mapName(name, (positionmodels.size() > 1) ? robotIndex : -1, -1);
++}
++
++// since stageros is single-threaded, this is OK. revisit if that changes!
++const char *
++StageNode::mapLaserName(const char *name, int laserIndex)
++{
++  int robotIndex = laser2robot[laserIndex];
++  ROS_WARN_STREAM("robotIndex:" << robotIndex);
++  int relLaserIndex = laserIndex - robot2laser[robotIndex];
++  ROS_WARN_STREAM("refLaserIndex:" << relLaserIndex);
++  int numLasers = robot2laser[robotIndex+1] - robot2laser[robotIndex];
++  ROS_WARN_STREAM("numLasers:" << numLasers);
++  return mapName(name, (positionmodels.size() > 1) ? robotIndex : -1,
++                 (numLasers > 1) ? relLaserIndex : -1);
++}
++
++void
++StageNode::mapAddRobot()
++{
++  // add extra entry
++  if(robot2laser.size() == 0)
++    robot2laser.push_back(lasermodels.size());
++
++  // add entry for the NEXT robot
++  robot2laser.push_back(lasermodels.size());
++}
++
++
++void
++StageNode::mapAddLaser()
++{
++  int numRobots = positionmodels.size();
++  int numLasers = lasermodels.size();
++
++  // update entry for next robot
++  robot2laser[numRobots] = numLasers;
++
++  laser2robot.push_back(numRobots-1);
++}
++
++void StageNode::addLaser(
++                         Stg::Model* mod,
++                         StageNode * node)
++{
++    if (dynamic_cast<Stg::ModelRanger *>(mod) &&
++        (mod->Parent() == node->positionmodels[node->positionmodels.size() - 1])){
++        printf("Adding laser\n");
++        node->lasermodels.push_back(dynamic_cast<Stg::ModelRanger *>(mod));
++        node->mapAddLaser();
++    }
+ }
+ 
+ void
+-StageNode::ghfunc(Stg::Model* mod, StageNode* node)
++StageNode::addRobot(
++    Stg::Model* mod, StageNode* node)
+ {
+-  if (dynamic_cast<Stg::ModelRanger *>(mod))
+-    node->lasermodels.push_back(dynamic_cast<Stg::ModelRanger *>(mod));
+-  if (dynamic_cast<Stg::ModelPosition *>(mod))
+-    node->positionmodels.push_back(dynamic_cast<Stg::ModelPosition *>(mod));
++      if (dynamic_cast<Stg::ModelPosition *>(mod)){
++        printf("Adding robot\n");
++        node->positionmodels.push_back(dynamic_cast<Stg::ModelPosition *>(mod));
++        node->mapAddRobot();
++        node->world->ForEachDescendant((Stg::model_callback_t)addLaser, node);
++    }
+ }
+ 
+ void
+@@ -200,18 +292,14 @@
+   // being invoked before we're ready.
+   this->world->AddUpdateCallback((Stg::world_callback_t)s_update, this);
+ 
+-  this->world->ForEachDescendant((Stg::model_callback_t)ghfunc, this);
+-  if (lasermodels.size() != positionmodels.size())
+-  {
+-    ROS_FATAL("number of position models and laser models must be equal in "
+-              "the world file.");
+-    ROS_BREAK();
+-  }
++  this->world->ForEachDescendant((Stg::model_callback_t)addRobot, this);
++
+   size_t numRobots = positionmodels.size();
+-  ROS_INFO("found %u position/laser pair%s in the file", 
+-           (unsigned int)numRobots, (numRobots==1) ? "" : "s");
++  ROS_INFO("found %d robot position model(s) in the file", numRobots);
++  size_t numLasers = lasermodels.size();
++  ROS_INFO("found %d laser position model(s) in the file", numLasers);
+ 
+-  this->laserMsgs = new sensor_msgs::LaserScan[numRobots];
++  this->laserMsgs = new sensor_msgs::LaserScan[numLasers];
+   this->odomMsgs = new nav_msgs::Odometry[numRobots];
+   this->groundTruthMsgs = new nav_msgs::Odometry[numRobots];
+ }
+@@ -230,15 +318,6 @@
+ 
+   for (size_t r = 0; r < this->positionmodels.size(); r++)
+   {
+-    if(this->lasermodels[r])
+-    {
+-      this->lasermodels[r]->Subscribe();
+-    }
+-    else
+-    {
+-      ROS_ERROR("no laser");
+-      return(-1);
+-    }
+     if(this->positionmodels[r])
+     {
+       this->positionmodels[r]->Subscribe();
+@@ -248,10 +327,23 @@
+       ROS_ERROR("no position");
+       return(-1);
+     }
+-    laser_pubs_.push_back(n_.advertise<sensor_msgs::LaserScan>(mapName(BASE_SCAN,r), 10));
+-    odom_pubs_.push_back(n_.advertise<nav_msgs::Odometry>(mapName(ODOM,r), 10));
+-    ground_truth_pubs_.push_back(n_.advertise<nav_msgs::Odometry>(mapName(BASE_POSE_GROUND_TRUTH,r), 10));
+-    cmdvel_subs_.push_back(n_.subscribe<geometry_msgs::Twist>(mapName(CMD_VEL,r), 10, boost::bind(&StageNode::cmdvelReceived, this, r, _1)));
++    odom_pubs_.push_back(n_.advertise<nav_msgs::Odometry>(mapRobotName(ODOM,r), 10));
++    ground_truth_pubs_.push_back(n_.advertise<nav_msgs::Odometry>(mapRobotName(BASE_POSE_GROUND_TRUTH,r), 10));
++    cmdvel_subs_.push_back(n_.subscribe<geometry_msgs::Twist>(mapRobotName(CMD_VEL,r), 10, boost::bind(&StageNode::cmdvelReceived, this, r, _1)));
++  }
++
++  //!!! Extra loop for lasers
++  for (size_t l = 0; l < this->lasermodels.size(); l++)
++  {
++    if (this->lasermodels[l])
++      this->lasermodels[l]->Subscribe();
++    else
++    {
++      ROS_ERROR("no laser");
++      return (-1);
++    }
++
++    laser_pubs_.push_back(n_.advertise<sensor_msgs::LaserScan>(mapLaserName(BASE_SCAN,l), 10));
+   }
+   clock_pub_ = n_.advertise<rosgraph_msgs::Clock>("/clock",10);
+   return(0);
+@@ -293,58 +385,66 @@
+   }
+ 
+   // Get latest laser data
+-  for (size_t r = 0; r < this->lasermodels.size(); r++)
+-		{
+-			const std::vector<Stg::ModelRanger::Sensor>& sensors = this->lasermodels[r]->GetSensors();
++  for (size_t l = 0; l < this->lasermodels.size(); l++)
++  {
++    const std::vector<Stg::ModelRanger::Sensor>& sensors = this->lasermodels[l]->GetSensors();
+ 		
+-		if( sensors.size() > 1 )
+-			ROS_WARN( "ROS Stage currently supports rangers with 1 sensor only." );
++	//	if( sensors.size() > 1 )
++	//		ROS_WARN( "ROS Stage currently supports rangers with 1 sensor only." );
+ 
+ 		// for now we access only the zeroth sensor of the ranger - good
+ 		// enough for most laser models that have a single beam origin
+-		const Stg::ModelRanger::Sensor& s = sensors[0];
++    for (size_t ll = l; ll-l < sensors.size(); ll++)
++    {
++	const Stg::ModelRanger::Sensor& s = sensors[ll];
+ 		
+     if( s.ranges.size() )
+ 			{
+       // Translate into ROS message format and publish
+-      this->laserMsgs[r].angle_min = -s.fov/2.0;
+-      this->laserMsgs[r].angle_max = +s.fov/2.0;
+-      this->laserMsgs[r].angle_increment = s.fov/(double)(s.sample_count-1);
+-      this->laserMsgs[r].range_min = s.range.min;
+-      this->laserMsgs[r].range_max = s.range.max;
+-      this->laserMsgs[r].ranges.resize(s.ranges.size());
+-      this->laserMsgs[r].intensities.resize(s.intensities.size());
++      this->laserMsgs[ll].angle_min = -s.fov/2.0;
++      this->laserMsgs[ll].angle_max = +s.fov/2.0;
++      this->laserMsgs[ll].angle_increment = s.fov/(double)(s.sample_count-1);
++      this->laserMsgs[ll].range_min = s.range.min;
++      this->laserMsgs[ll].range_max = s.range.max;
++      this->laserMsgs[ll].ranges.resize(s.ranges.size());
++      this->laserMsgs[ll].intensities.resize(s.intensities.size());
+ 			
+       for(unsigned int i=0; i<s.ranges.size(); i++)
+ 				{
+-					this->laserMsgs[r].ranges[i] = s.ranges[i];
+-					this->laserMsgs[r].intensities[i] = (uint8_t)s.intensities[i];
++					this->laserMsgs[ll].ranges[i] = s.ranges[i];
++					this->laserMsgs[ll].intensities[i] = (uint8_t)s.intensities[i];
+ 				}
+ 			
+-      this->laserMsgs[r].header.frame_id = mapName("base_laser_link", r);
+-      this->laserMsgs[r].header.stamp = sim_time;
+-      this->laser_pubs_[r].publish(this->laserMsgs[r]);
+-			}
++      ROS_WARN("START");
++      ROS_WARN_STREAM("FINAL NAME: " << mapLaserName("base_laser_link", ll));
++      this->laserMsgs[ll].header.frame_id = mapLaserName("base_laser_link", ll);
++      this->laserMsgs[ll].header.stamp = sim_time;
++      this->laser_pubs_[ll].publish(this->laserMsgs[ll]);
++	}
+ 
+     // Also publish the base->base_laser_link Tx.  This could eventually move
+     // into being retrieved from the param server as a static Tx.
+-    Stg::Pose lp = this->lasermodels[r]->GetPose();
++    Stg::Pose lp = this->lasermodels[ll]->GetPose();
+     tf::Quaternion laserQ;
+     laserQ.setRPY(0.0, 0.0, lp.a);
+     tf::Transform txLaser =  tf::Transform(laserQ,
+                                             tf::Point(lp.x, lp.y, 0.15));
+     tf.sendTransform(tf::StampedTransform(txLaser, sim_time,
+-                                          mapName("base_link", r),
+-                                          mapName("base_laser_link", r)));
++                                          mapRobotName("base_link", ll),
++                                          mapLaserName("base_laser_link", ll)));
+ 
+     // Send the identity transform between base_footprint and base_link
+     tf::Transform txIdentity(tf::createIdentityQuaternion(),
+                              tf::Point(0, 0, 0));
+     tf.sendTransform(tf::StampedTransform(txIdentity,
+                                           sim_time,
+-                                          mapName("base_footprint", r),
+-                                          mapName("base_link", r)));
++                                          mapRobotName("base_footprint", ll),
++                                          mapLaserName("base_link", ll)));
++    }
++    }
+ 
++    for (size_t r = 0; r < this->positionmodels.size(); r++)
++    {
+     // Get latest odometry data
+     // Translate into ROS message format and publish
+     this->odomMsgs[r].pose.pose.position.x = this->positionmodels[r]->est_pose.x;
+@@ -358,7 +458,7 @@
+     //@todo Publish stall on a separate topic when one becomes available
+     //this->odomMsgs[r].stall = this->positionmodels[r]->Stall();
+     //
+-    this->odomMsgs[r].header.frame_id = mapName("odom", r);
++    this->odomMsgs[r].header.frame_id = mapRobotName("odom", r);
+     this->odomMsgs[r].header.stamp = sim_time;
+ 
+     this->odom_pubs_[r].publish(this->odomMsgs[r]);
+@@ -370,8 +470,8 @@
+                          tf::Point(odomMsgs[r].pose.pose.position.x,
+                                    odomMsgs[r].pose.pose.position.y, 0.0));
+     tf.sendTransform(tf::StampedTransform(txOdom, sim_time,
+-                                          mapName("odom", r),
+-                                          mapName("base_footprint", r)));
++                                          mapRobotName("odom", r),
++                                          mapRobotName("base_footprint", r)));
+ 
+     // Also publish the ground truth pose and velocity
+     Stg::Pose gpose = this->positionmodels[r]->GetGlobalPose();
+@@ -398,7 +498,7 @@
+     //this->groundTruthMsgs[r].twist.twist.linear.y = gvel.y;
+     this->groundTruthMsgs[r].twist.twist.angular.z = gvel.a;
+ 
+-    this->groundTruthMsgs[r].header.frame_id = mapName("odom", r);
++    this->groundTruthMsgs[r].header.frame_id = mapRobotName("odom", r);
+     this->groundTruthMsgs[r].header.stamp = sim_time;
+ 
+     this->ground_truth_pubs_[r].publish(this->groundTruthMsgs[r]);

@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="stage" type="stageros" name="stageros" args="$(find pioneer-dreamteam)/stage/pioneer_test.world" required="true"/>
+  <node pkg="rosbridge_server" type="rosbridge.py" name="rosbridge_server" />
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" args="scan:=base_scan" />
+  <!--node pkg="pioneer-dreamteam" type="tf_broadcaster" name="tf_broadcaster" /-->
+</launch>
