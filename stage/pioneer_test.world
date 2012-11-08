@@ -2,10 +2,11 @@
 # Authors: Richard Vaughan
 # $Id$
 
-include "pioneer3dx.inc"
+include "as_pioneer.inc"
+#include "pioneer3dx.inc"
 #include "pioneer.inc"
 include "map.inc"
-include "sick.inc"
+#include "sick.inc"
 #include "walle.inc"
 
 paused 1
@@ -38,17 +39,17 @@ pioneer3dx
 (		  
   # can refer to the robot by this name
   name "r0"
-  pose [ -2.228 -5.262 0.000 -151.707 ] 
+  pose [ -2.228 -5.262 0.000 0.000 ] 
 
   # pioneer2dx's sonars	will be ranger:0 and the laser will be ranger:1
-  fancysicklaser( pose [ 0.000 0.000 0.000 0.000 ] ) 
+  #fancysicklaser( pose [ 0.000 0.000 0.000 0.000 ] ) 
  
   # demonstrate a plugin controller, implemented in examples/ctrl/wander.cc
   #ctrl "wander"
 
   # report error-free position in world coordinates
-  localization "gps"
-  localization_origin [ 0 0 0 0 ]
+  #localization "gps"
+  #localization_origin [ 0 0 0 0 ]
 )
 
 #walle
