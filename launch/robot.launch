@@ -1,0 +1,11 @@
+<launch>
+  <node pkg="ROSARIA" type="RosAria" name="RosAria" required="true">
+    <param name="port" type="str" value="/dev/ttyUSB0"/>
+  </node>
+  <node pkg="LMS1xx" type="LMS100" name="LMS100" required="true">
+    <param name="host" type="str" value="192.168.0.1"/>
+  </node>
+  <node pkg="pioneer-dreamteam" type="tf_broadcaster" name="tf_broadcaster" />
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" />
+</launch>
+
