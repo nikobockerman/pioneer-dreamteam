@@ -6,6 +6,10 @@
     <param name="host" type="str" value="192.168.0.1"/>
   </node>
   <node pkg="pioneer-dreamteam" type="tf_broadcaster" name="tf_broadcaster" />
-  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" />
+  <!--node pkg="gmapping" type="slam_gmapping" name="slam_gmapping"/-->
+  <node pkg="map_server" type="map_server" name="map_server" args="map.yaml"/>
+  <node pkg="amcl" type="amcl" name="amcl">
+    <param name="use_map_topic" type="bool" value="true"/>
+  </node>
 </launch>
 
