@@ -13,7 +13,7 @@ define pioneer_base position
 
   # alternative odometric localization with simple error model
   localization "odom"         		# Change to "gps" to have impossibly perfect, global odometry
-  odom_error [ 0.55 0.25 0.0 0.7 ]   	# Odometry error or slip in X, Y and Theta
+  odom_error [ 0.0 0.0 0.0 0.0 ]   	# Odometry error or slip in X, Y and Theta
                                    	# (Uniform random distribution)   
 
   # four DOF kinematics limits

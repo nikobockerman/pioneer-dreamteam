@@ -1,6 +1,16 @@
 <launch>
   <node pkg="stage" type="stageros" name="stageros" args="$(find pioneer-dreamteam)/stage/pioneer_test.world" required="true"/>
   <node pkg="rosbridge_server" type="rosbridge.py" name="rosbridge_server" />
-  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" args="scan:=base_scan" />
-  <!--node pkg="pioneer-dreamteam" type="tf_broadcaster" name="tf_broadcaster" /-->
+  <node pkg="map_server" type="map_server" name="map_server" args="$(find pioneer-dreamteam)/map-sim.yaml"/>
+  <node pkg="amcl" type="amcl" name="amcl" args="scan:=base_scan">
+    <param name="use_map_topic" type="bool" value="true"/>
+  </node>
+  <!--node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" args="scan:=base_scan" /-->
+  <node pkg="move_base" type="move_base" name="move_base" respawn="true" output="screen">
+    <rosparam file="$(find pioneer-dreamteam)/navigation/costmap_common_params-sim.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/costmap_common_params-sim.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/local_costmap_params-sim.yaml" command="load" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/global_costmap_params-sim.yaml" command="load" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/base_local_planner_params-sim.yaml" command="load" />
+  </node>
 </launch>
