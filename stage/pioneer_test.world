@@ -39,7 +39,7 @@ pioneer3dx
 (		  
   # can refer to the robot by this name
   name "r0"
-  pose [ -2.228 -5.262 0.000 0.000 ] 
+  pose [ 4.228 -2.2 0.000 165.000 ] 
 
   # pioneer2dx's sonars	will be ranger:0 and the laser will be ranger:1
   #fancysicklaser( pose [ 0.000 0.000 0.000 0.000 ] ) 

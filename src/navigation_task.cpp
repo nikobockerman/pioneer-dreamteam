@@ -45,44 +45,17 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 8.6;
-    goal.target_pose.pose.position.y = 1.13;
-    goal.target_pose.pose.orientation.z = -0.3;
-    goal.target_pose.pose.orientation.w = 1.0;
+    goal.target_pose.pose.position.x = 	0.534232079983;
+    goal.target_pose.pose.position.y = -0.0222596377134;
+    goal.target_pose.pose.orientation.z = -0.651130944826;
+    goal.target_pose.pose.orientation.w = 0.758965409416;
     goalList.push_back(goal);
   }
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 5.7;
-    goal.target_pose.pose.position.y = 2.8;
-    goal.target_pose.pose.orientation.z = 1.0;
-    goal.target_pose.pose.orientation.w = 0.3;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 1.3;
-    goal.target_pose.pose.position.y = 7.6;
-    goal.target_pose.pose.orientation.z = 0.2;
-    goal.target_pose.pose.orientation.w = 1.0;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 8.6;
-    goal.target_pose.pose.position.y = 7.5;
-    goal.target_pose.pose.orientation.z = 1.0;
-    goal.target_pose.pose.orientation.w = -0.3;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 3.1;
-    goal.target_pose.pose.position.y = 12.3;
+    goal.target_pose.pose.position.x = 0.534232020378;
+    goal.target_pose.pose.position.y = -1.94215679169;
     goal.target_pose.pose.orientation.z = 1.0;
     goal.target_pose.pose.orientation.w = 0.0;
     goalList.push_back(goal);
@@ -90,28 +63,73 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -4.0;
-    goal.target_pose.pose.position.y = 9.9;
-    goal.target_pose.pose.orientation.z = -0.7;
-    goal.target_pose.pose.orientation.w = 0.7;
+    goal.target_pose.pose.position.x = -0.267116039991;
+    goal.target_pose.pose.position.y = -1.78077423573;
+    goal.target_pose.pose.orientation.z = 0.738422535026;
+    goal.target_pose.pose.orientation.w = 0.674338312545;
     goalList.push_back(goal);
   }
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -3.9;
-    goal.target_pose.pose.position.y = 0.8;
-    goal.target_pose.pose.orientation.z = -0.2;
-    goal.target_pose.pose.orientation.w = 1.0;
+    goal.target_pose.pose.position.x = -0.339460045099;
+    goal.target_pose.pose.position.y = -1.0;
+    goal.target_pose.pose.orientation.z = 1.0;
+    goal.target_pose.pose.orientation.w = 0.0;
     goalList.push_back(goal);
   }
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 0.3;
-    goal.target_pose.pose.position.y = 0.0;
+    goal.target_pose.pose.position.x = -1.42461895943;
+    goal.target_pose.pose.position.y = -1.2;
+    goal.target_pose.pose.orientation.z = -0.707106781187;
+    goal.target_pose.pose.orientation.w = 0.707106781187;
+    goalList.push_back(goal);
+  }
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -1.53591871262;
+    goal.target_pose.pose.position.y = -1.81416416168;
+    goal.target_pose.pose.orientation.z = 1.0;
+    goal.target_pose.pose.orientation.w = 0.0;
+    goalList.push_back(goal);
+  }
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -2.47638988495;
+    goal.target_pose.pose.position.y = -1.80303430557;
+    goal.target_pose.pose.orientation.z = 0.707106781187;
+    goal.target_pose.pose.orientation.w = 0.707106781187;
+    goalList.push_back(goal);
+  }
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -2.35396170616;
+    goal.target_pose.pose.position.y = -0.328330993652;
+    goal.target_pose.pose.orientation.z = 0.0237893314409;
+    goal.target_pose.pose.orientation.w = 0.999716993809;
+    goalList.push_back(goal);
+  }
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -1.86424839497;
+    goal.target_pose.pose.position.y = -0.15581779182;
     goal.target_pose.pose.orientation.z = 0.0;
     goal.target_pose.pose.orientation.w = 1.0;
+    goalList.push_back(goal);
+  }
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -0.506408452988;
+    goal.target_pose.pose.position.y = 0.0556491538882;
+    goal.target_pose.pose.orientation.z = -0.0124971500965;
+    goal.target_pose.pose.orientation.w = 0.999921907571;
     goalList.push_back(goal);
   }
 }

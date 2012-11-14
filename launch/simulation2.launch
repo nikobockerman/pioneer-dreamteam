@@ -1,7 +1,7 @@
 <launch>
   <node pkg="stage" type="stageros" name="stageros" args="$(find pioneer-dreamteam)/stage/pioneer_test2.world" required="true"/>
   <node pkg="rosbridge_server" type="rosbridge.py" name="rosbridge_server" />
-  <node pkg="map_server" type="map_server" name="map_server" args="$(find pioneer-dreamteam)/map.yaml"/>
+  <node pkg="map_server" type="map_server" name="map_server" args="$(find pioneer-dreamteam)/taskmap.yaml"/>
   <node pkg="amcl" type="amcl" name="amcl" args="scan:=base_scan">
     <param name="use_map_topic" type="bool" value="true"/>
   </node>
