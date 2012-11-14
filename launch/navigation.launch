@@ -1,0 +1,11 @@
+<launch>
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <rosparam file="$(find pioneer-dreamteam)/navigation/costmap_common_params-sim.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/costmap_common_params-sim.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/local_costmap_params-sim.yaml" command="load" />
+    <rosparam file="$(find pioneer-dreamteam)/navigation/global_costmap_params-sim.yaml" command="load" />
+    <!--rosparam file="$(find pioneer-dreamteam)/navigation/base_local_planner_params-sim.yaml" command="load" /-->
+    <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS"/>
+    <rosparam file="$(find pioneer-dreamteam)/navigation/dwa_local_planner_params-sim.yaml" command="load" />
+  </node>
+</launch>

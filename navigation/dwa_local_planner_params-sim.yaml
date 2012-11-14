@@ -1,0 +1,17 @@
+DWAPlannerROS:
+  #max_vel_x: 0.45
+  #min_vel_x: 0.00
+  #max_rot_vel: 1.0
+  #min_rot_vel: 0.2
+
+  #acc_lim_th: 3.2
+  #acc_lim_x: 2.5
+  #acc_lim_y: 2.5
+
+  penalize_negative_x: true
+  #vx_samples: 5
+  #vy_samples: 5
+  #sim_time: 2.0
+
+  #yaw_goal_tolerance: 0.1
+  #xy_goal_tolerance: 0.05
