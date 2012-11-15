@@ -22,21 +22,30 @@ int main(int argc, char** argv){
   
   while (n.ok())
   {
-    for (std::vector<move_base_msgs::MoveBaseGoal>::iterator it = goalList.begin(); it != goalList.end(); ++it)
+    for (std::vector<move_base_msgs::MoveBaseGoal>::iterator it = goalList.begin(); it != goalList.end() && n.ok(); ++it)
     {
       it->target_pose.header.stamp = ros::Time::now();
 
       ROS_INFO("Sending goal");
       ac.sendGoal(*it);
 
-      ac.waitForResult();
+      bool wait = true;
+      while (n.ok() && wait)
+      {
+        ac.waitForResult(ros::Duration(1));
 
-      if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-        ROS_INFO("Hooray, the base reached goal");
-      else
-        ROS_INFO("The base failed to move to goal for some reason");
+        if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+        {
+          wait = false;
+          ROS_INFO("Hooray, the base reached goal");
+        }
+        else
+          ROS_INFO("The base is still trying to reach the goal");
+      }
     }
   }
+  
+  ac.cancelAllGoals();
 
   return 0;
 }
