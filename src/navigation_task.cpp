@@ -7,9 +7,9 @@ typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseCl
 void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList);
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "simple_navigation_goals");
+  ros::init(argc, argv, "navigation_task");
+  ros::NodeHandle n;
 
-  //tell the action client that we want to spin a thread by default
   MoveBaseClient ac("move_base", true);
 
   //wait for the action server to come up
@@ -20,21 +20,32 @@ int main(int argc, char** argv){
   std::vector<move_base_msgs::MoveBaseGoal> goalList;
   prepareGoalList(goalList);
   
-  
-  for (std::vector<move_base_msgs::MoveBaseGoal>::iterator it = goalList.begin(); it != goalList.end(); ++it)
+  while (n.ok())
   {
-    it->target_pose.header.stamp = ros::Time::now();
+    for (std::vector<move_base_msgs::MoveBaseGoal>::iterator it = goalList.begin(); it != goalList.end() && n.ok(); ++it)
+    {
+      it->target_pose.header.stamp = ros::Time::now();
 
-    ROS_INFO("Sending goal");
-    ac.sendGoal(*it);
+      ROS_INFO("Sending goal");
+      ac.sendGoal(*it);
 
-    ac.waitForResult();
+      bool wait = true;
+      while (n.ok() && wait)
+      {
+        ac.waitForResult(ros::Duration(1));
 
-    if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-      ROS_INFO("Hooray, the base moved 1 meter forward");
-    else
-      ROS_INFO("The base failed to move forward 1 meter for some reason");
+        if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+        {
+          wait = false;
+          ROS_INFO("Hooray, the base reached goal");
+        }
+        else
+          ROS_INFO("The base is still trying to reach the goal");
+      }
+    }
   }
+  
+  ac.cancelAllGoals();
 
   return 0;
 }
