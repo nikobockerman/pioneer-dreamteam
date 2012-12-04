@@ -1,1 +1,0 @@
-rosbuild_add_executable(statemachine statemachine.cpp statemachine.h)
