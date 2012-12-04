@@ -13,7 +13,7 @@ namespace state {
     Approach = 3
   };
 
-  inline unsigned int stateToUInt (const State& state) {
+  /*inline unsigned int stateToUInt (const State& state) {
     switch (state)
     {
       case Startup: return 1; break;
@@ -21,14 +21,14 @@ namespace state {
       case Approach: return 3; break;
       default: return 0;
     }
-  }
+  }*/
 
   inline State uintToState (const unsigned int& stateNro) {
     switch (stateNro)
     {
       case 1: return Startup; break;
       case 2: return Explore; break;
-      case 3: return Explore; break;
+      case 3: return Approach; break;
       default: return Undefined;
     }
   }
@@ -36,20 +36,24 @@ namespace state {
   class StateMachine
   {
   public:
-    StateMachine(ros::NodeHandle& n, bool subscribe = true) : currentState_(state::Undefined) {
+    StateMachine(ros::NodeHandle& n, bool subscribe = true) : currentState_(Undefined) {
       if (subscribe) {
-	n.subscribe("state_change", 1, &StateMachine::stateChangeCallback, this);
+        ROS_INFO("Subscribing to state_change topic");
+	stateChangeSubscriber_ = n.subscribe("state_change", 1, &StateMachine::stateChangeCallback, this);
       }
     }
-    inline state::State currentState() {return currentState_;}
+    state::State currentState() {return currentState_;}
     
     void stateChangeCallback(const state_machine::StateMessage::ConstPtr& newState) {
+      ROS_INFO("Callback to state %u", newState->new_state);
       currentState_ = state::uintToState(newState->new_state);
+      stateChangeHandler();
     }
     
     virtual void stateChangeHandler() {}
-  private:
+  protected:
     state::State currentState_;
+    ros::Subscriber stateChangeSubscriber_;
   };
 }
 

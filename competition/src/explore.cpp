@@ -3,9 +3,10 @@
 
 class ExploreStateMachine : public state::StateMachine {
 public:
-  ExploreStateMachine(ros::NodeHandle& n) : state::StateMachine(n, true) {}
+  ExploreStateMachine(ros::NodeHandle& n) : state::StateMachine(n) {}
   
   void stateChangeHandler() {
+    ROS_INFO("Handling state change to state %u", currentState());
     if (currentState() == state::Explore) {
       // Actual explore code here
     }
@@ -14,10 +15,12 @@ public:
 
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "state_machine");
+  ros::init(argc, argv, "explore");
   ros::NodeHandle n;
   
-  state::StateMachine state(n);
+  ExploreStateMachine state(n);
+  
+  ROS_INFO("Explore node started");
   
   ros::spin();
   
