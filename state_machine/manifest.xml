@@ -1,0 +1,12 @@
+<package>
+  <description brief="State machine for Pioneer-dreamteam project work">
+
+     State machine of Pioneer-dreamteam project work
+
+  </description>
+  <author>Niko Böckerman/niko.bockerman@aalto.fi</author>
+  <license>BSD</license>
+  <depend package="roscpp" />
+</package>
+
+
