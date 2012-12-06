@@ -32,3 +32,5 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_add_executable(tf_broadcaster src/tf_broadcaster.cpp)
 #rosbuild_add_executable(tf_listener src/tf_listener.cpp)
 rosbuild_add_executable(navigation_task src/navigation_task.cpp)
+
+rosbuild_add_executable(navigation_task_better src/navigation_task_better.cpp)
