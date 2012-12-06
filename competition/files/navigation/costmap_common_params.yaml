@@ -1,0 +1,38 @@
+# Coordinate frame and tf parameters
+#global_frame: /map
+robot_base_frame: base_link
+#transform_tolerance: 0.2
+
+# Rate parameters
+#update_frequency: 5.0
+#publish_frequency: 0.0
+
+# Global costmap parameters
+max_obstacle_height: 1.0
+obstacle_range: 1.0
+raytrace_range: 1.5
+#cost_scaling_factor: 10.0
+
+# Robot description parameters
+inflation_radius: 0.19
+footprint: [[0.10, 0.191], [-0.17, 0.191], [-0.275, 0.11], [-0.275, -0.11], [-0.15, -0.216], [-0.07, -0.216], [0.10, -0.191], [0.35, -0.04], [0.35, 0.04]]
+
+# Sensor management parameters
+#Add pointcloud when published
+observation_sources: laser_scan_sensor
+laser_scan_sensor:
+  topic: scan
+  expected_update_rate: 0.1
+  data_type: LaserScan
+  #clearing: false
+  #marking: true
+  
+# Map management parameters
+#static_map: true
+#rolling_window: false
+#map_topic: map
+unknown_cost_value: -1
+
+# Map type parameters
+map_type: costmap
+track_unknown_space: true

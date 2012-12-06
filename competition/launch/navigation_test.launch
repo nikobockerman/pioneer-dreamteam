@@ -1,0 +1,19 @@
+<launch>
+  <node pkg="ROSARIA" type="RosAria" name="RosAria" required="true">
+    <param name="port" type="str" value="/dev/ttyUSB0"/>
+  </node>
+  <node pkg="LMS1xx" type="LMS100" name="LMS100" required="true">
+    <param name="host" type="str" value="192.168.0.1"/>
+  </node>
+  <node pkg="competition" type="laserposition" name="laserposition" required="true" />
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" required="true" />
+  <node pkg="rosbridge_server" type="rosbridge.py" name="rosbridge_server" required="true" />
+  <node pkg="move_base" type="move_base" name="move_base" required="true">
+    <rosparam file="$(find competition)/files/navigation/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find competition)/files/navigation/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find competition)/files/navigation/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find competition)/files/navigation/global_costmap_params.yaml" command="load" />
+    <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS"/>
+    <rosparam file="$(find competition)/files/navigation/dwa_local_planner_params.yaml" command="load" />
+  </node>
+</launch>

@@ -1,0 +1,3 @@
+global_costmap:
+  global_frame: /map
+  update_frequency: 1.0
