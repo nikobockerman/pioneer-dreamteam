@@ -1,0 +1,23 @@
+<launch>
+  <!--node pkg="tf" type="static_transform_publisher" name="laser_tf_broadcaster" args="-0.12 0 0.55 0 0 0 base_link laser 100" /-->
+  <node pkg="competition" type="laserposition" name="laserposition" required="true" output="screen" />
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" required="true" output="screen">
+    <param name="maxRange" value="20.0" />
+    <param name="maxUrange" value="10.0" />
+    <param name="xmin" value="-20.0" />
+    <param name="xmax" value="20.0" />
+    <param name="ymin" value="-20.0" />
+    <param name="ymax" value="20.0" />
+  </node>
+</launch>
+<!--launch>
+  <node pkg="move_base" type="move_base" name="move_base" required="true" output="screen">
+    <remap from="/cmd_vel" to="/RosAria/cmd_vel" />
+    <rosparam file="$(find competition)/files/navigation/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find competition)/files/navigation/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find competition)/files/navigation/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find competition)/files/navigation/global_costmap_params.yaml" command="load" />
+    <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS"/>
+    <rosparam file="$(find competition)/files/navigation/dwa_local_planner_params.yaml" command="load" />
+  </node>
+</launch-->
