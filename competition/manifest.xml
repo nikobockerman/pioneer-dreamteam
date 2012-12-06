@@ -1,0 +1,12 @@
+<package>
+  <description brief="Pioneer-dreamteam project work">
+
+     Pioneer-dreamteam project work for the final competition
+
+  </description>
+  <author>Niko Böckerman/niko.bockerman@aalto.fi</author>
+  <license>BSD</license>
+  <depend package="roscpp" />
+</package>
+
+
