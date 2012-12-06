@@ -49,7 +49,7 @@ RobotState::RobotState (bool subscribe)
   }
 }
 
-void RobotState::stateChangeCallback (const state_machine::StateMessage& newStateMsg)
+void RobotState::stateChangeCallback (const competition::StateMessage& newStateMsg)
 {
   robotstate::State newState = robotstate::uintToState(newStateMsg.new_state);
   ROS_INFO ("State was changed to '%s'", robotstate::stateToString(newState).c_str());

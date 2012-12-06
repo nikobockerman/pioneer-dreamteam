@@ -3,7 +3,7 @@
 
 //#include <ros/node_handle.h>
 #include <ros/subscriber.h>
-#include "state_machine/StateMessage.h"
+#include "competition/StateMessage.h"
 
 namespace ros{class NodeHandle;}
 
@@ -26,7 +26,7 @@ public:
   
   robotstate::State currentState();
   
-  void stateChangeCallback(const state_machine::StateMessage& newState);
+  void stateChangeCallback(const competition::StateMessage& newState);
   
 protected:
   void currentState(const robotstate::State& newState);

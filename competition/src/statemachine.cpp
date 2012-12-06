@@ -35,7 +35,7 @@ MainStateMachine::MainStateMachine ()
 
 void MainStateMachine::init()
 {
-  statePub_ = nh_.advertise<state_machine::StateMessage> ("state_change", 1, true);
+  statePub_ = nh_.advertise<competition::StateMessage> ("state_change", 1, true);
   if (!statePub_) {
     ROS_ERROR ("Failed to advertise 'state_change' topic.");
     return;
@@ -46,7 +46,7 @@ void MainStateMachine::init()
 
   ROS_INFO ("Main State machine initialized");
 
-  state_machine::StateMessage msg;
+  competition::StateMessage msg;
   msg.new_state = currentState();
   statePub_.publish (msg);
   startUpTimer_.start();
@@ -79,7 +79,7 @@ void MainStateMachine::runOnce (const ros::TimerEvent& event)
       currentState (robotstate::Startup);
   }
   ROS_INFO ("Sending new state %s", robotstate::stateToString(currentState()).c_str());
-  state_machine::StateMessage msg;
+  competition::StateMessage msg;
   msg.new_state = currentState();
   statePub_.publish (msg);
 }
