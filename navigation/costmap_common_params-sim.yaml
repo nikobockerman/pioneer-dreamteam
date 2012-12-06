@@ -3,11 +3,11 @@ raytrace_range: 1.5
 #footprint: [[x0, y0], [x1, y1], ... [xn, yn]]
 footprint: [[0.12, 0.19], [0.17, 0.14], [0.17, -0.14], [0.14, -0.19], [-0.23, -0.19], [-0.28, -0.14], [-0.28, 0.14], [-0.23, 0.19]]
 #robot_radius: 0.28
-inflation_radius: 0.2
+inflation_radius: 0.24
 
 #observation_sources: laser_scan_sensor point_cloud_sensor
 observation_sources: laser_scan_sensor 
 
-laser_scan_sensor: {sensor_frame: base_laser_link, data_type: LaserScan, topic: base_scan, marking: true, clearing: true}
+laser_scan_sensor: {sensor_frame: laser, data_type: LaserScan, topic: scan, marking: true, clearing: true}
 
 #point_cloud_sensor: {sensor_frame: frame_name, data_type: PointCloud, topic: topic_name, marking: true, clearing: true}
