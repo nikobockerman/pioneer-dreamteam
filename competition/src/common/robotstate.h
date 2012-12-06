@@ -22,7 +22,7 @@ namespace robotstate
 class RobotState
 {
 public:
-  RobotState(ros::NodeHandle& nh, bool subscribe = true);
+  RobotState(bool subscribe = true);
   
   robotstate::State currentState();
   

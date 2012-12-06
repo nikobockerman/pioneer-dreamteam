@@ -10,7 +10,7 @@ const double LOOP_DELAY = 1.0;
 class MainStateMachine : public RobotState
 {
 public:
-  MainStateMachine (ros::NodeHandle& nh);
+  MainStateMachine ();
   void init();
 
   void startUp (const ros::TimerEvent& event);
@@ -19,15 +19,15 @@ public:
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState) {};
   
-  ros::NodeHandle& nh_;
+  ros::NodeHandle nh_;
   ros::Publisher statePub_;
   ros::Timer startUpTimer_;
   ros::Timer loopTimer_;
 };
 
 
-MainStateMachine::MainStateMachine (ros::NodeHandle& nh)
-  : RobotState (nh, false), nh_ (nh), statePub_(), startUpTimer_(), loopTimer_()
+MainStateMachine::MainStateMachine ()
+  : RobotState (false)
 {
   currentState (robotstate::Startup);
 }
@@ -88,8 +88,7 @@ void MainStateMachine::runOnce (const ros::TimerEvent& event)
 int main (int argc, char** argv)
 {
   ros::init (argc, argv, "state_machine");
-  ros::NodeHandle nh;
-  MainStateMachine mainState (nh);
+  MainStateMachine mainState;
   mainState.init();
 
   ros::spin();

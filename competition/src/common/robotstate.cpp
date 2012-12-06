@@ -39,12 +39,13 @@ namespace robotstate
   }
 }
 
-RobotState::RobotState (ros::NodeHandle& n, bool subscribe)
+RobotState::RobotState (bool subscribe)
   : currentState_ (robotstate::Undefined)
 {
   if (subscribe) {
     ROS_INFO ("Subscribing to state_change topic");
-    stateChangeSubscriber_ = n.subscribe ("state_change", 1, &RobotState::stateChangeCallback, this);
+    ros::NodeHandle nh;
+    stateChangeSubscriber_ = nh.subscribe ("state_change", 1, &RobotState::stateChangeCallback, this);
   }
 }
 

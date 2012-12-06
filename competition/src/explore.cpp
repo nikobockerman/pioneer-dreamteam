@@ -5,20 +5,20 @@ const double LOOP_DELAY = 1.0;
 
 class ExploreStateMachine : public RobotState {
 public:
-  ExploreStateMachine(ros::NodeHandle& nh);
+  ExploreStateMachine();
   void init();
   void runOnce(const ros::TimerEvent& event);
   
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
   
-  ros::NodeHandle& nh_;
+  ros::NodeHandle nh_;
   //ros::Timer loopTimer_;
 };
 
 
-ExploreStateMachine::ExploreStateMachine (ros::NodeHandle& nh)
-  : RobotState(nh), nh_(nh)
+ExploreStateMachine::ExploreStateMachine ()
+  : RobotState()
 {}
 
 
@@ -40,9 +40,7 @@ void ExploreStateMachine::stateChangeHandler (const robotstate::State& oldState)
 
 int main(int argc, char** argv){
   ros::init(argc, argv, "explore");
-  ros::NodeHandle n;
-  
-  ExploreStateMachine explore(n);
+  ExploreStateMachine explore;
   explore.init();
   
   ROS_INFO("Explore node started");
