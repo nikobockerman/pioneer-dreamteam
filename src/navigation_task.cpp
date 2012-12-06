@@ -65,13 +65,13 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 0.32;
+    goal.target_pose.pose.position.x = 0.48;
     goal.target_pose.pose.position.y = -2.14;
     goal.target_pose.pose.orientation.z = 0.96;
     goal.target_pose.pose.orientation.w = -0.27;
     goalList.push_back(goal);
   }
-  {
+/*  {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
     goal.target_pose.pose.position.x = -0.29;
@@ -79,7 +79,7 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
     goal.target_pose.pose.orientation.z = 0.72;
     goal.target_pose.pose.orientation.w = 0.69;
     goalList.push_back(goal);
-  }
+  }*/
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
@@ -98,7 +98,7 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
     goal.target_pose.pose.orientation.w = 0.62;
     goalList.push_back(goal);
   }
-  {
+  /*{
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
     goal.target_pose.pose.position.x = -1.65;
@@ -106,7 +106,7 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
     goal.target_pose.pose.orientation.z = 0.99;
     goal.target_pose.pose.orientation.w = -0.06;
     goalList.push_back(goal);
-  }
+  }*/
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
@@ -125,7 +125,7 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
     goal.target_pose.pose.orientation.w = 0.99;
     goalList.push_back(goal);
   }
-  {
+/*  {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
     goal.target_pose.pose.position.x = -0.52;
@@ -133,5 +133,5 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
     goal.target_pose.pose.orientation.z = 0.01;
     goal.target_pose.pose.orientation.w = 1.0;
     goalList.push_back(goal);
-  }
+  }*/
 }
