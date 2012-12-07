@@ -56,91 +56,82 @@ void prepareGoalList(std::vector<move_base_msgs::MoveBaseGoal>& goalList)
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 	0.534232079983;
-    goal.target_pose.pose.position.y = -0.0222596377134;
-    goal.target_pose.pose.orientation.z = -0.651130944826;
-    goal.target_pose.pose.orientation.w = 0.758965409416;
+    goal.target_pose.pose.position.x = 	0.63;
+    goal.target_pose.pose.position.y = -0.19;
+    goal.target_pose.pose.orientation.z = -0.57;
+    goal.target_pose.pose.orientation.w = 0.82;
     goalList.push_back(goal);
   }
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = 0.534232020378;
-    goal.target_pose.pose.position.y = -1.94215679169;
-    goal.target_pose.pose.orientation.z = 1.0;
-    goal.target_pose.pose.orientation.w = 0.0;
+    goal.target_pose.pose.position.x = 0.48;
+    goal.target_pose.pose.position.y = -2.14;
+    goal.target_pose.pose.orientation.z = 0.96;
+    goal.target_pose.pose.orientation.w = -0.27;
+    goalList.push_back(goal);
+  }
+/*  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -0.29;
+    goal.target_pose.pose.position.y = -1.87;
+    goal.target_pose.pose.orientation.z = 0.72;
+    goal.target_pose.pose.orientation.w = 0.69;
+    goalList.push_back(goal);
+  }*/
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -0.37;
+    goal.target_pose.pose.position.y = -1.25;
+    goal.target_pose.pose.orientation.z = 0.99;
+    goal.target_pose.pose.orientation.w = 0.02;
     goalList.push_back(goal);
   }
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -0.267116039991;
-    goal.target_pose.pose.position.y = -1.78077423573;
-    goal.target_pose.pose.orientation.z = 0.738422535026;
-    goal.target_pose.pose.orientation.w = 0.674338312545;
+    goal.target_pose.pose.position.x = -1.38;
+    goal.target_pose.pose.position.y = -1.31;
+    goal.target_pose.pose.orientation.z = -0.78;
+    goal.target_pose.pose.orientation.w = 0.62;
+    goalList.push_back(goal);
+  }
+  /*{
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -1.65;
+    goal.target_pose.pose.position.y = -2.0;
+    goal.target_pose.pose.orientation.z = 0.99;
+    goal.target_pose.pose.orientation.w = -0.06;
+    goalList.push_back(goal);
+  }*/
+  {
+    move_base_msgs::MoveBaseGoal goal;
+    goal.target_pose.header.frame_id = "map";
+    goal.target_pose.pose.position.x = -2.61;
+    goal.target_pose.pose.position.y = -1.84;
+    goal.target_pose.pose.orientation.z = 0.71;
+    goal.target_pose.pose.orientation.w = 0.70;
     goalList.push_back(goal);
   }
   {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -0.339460045099;
-    goal.target_pose.pose.position.y = -1.0;
-    goal.target_pose.pose.orientation.z = 1.0;
-    goal.target_pose.pose.orientation.w = 0.0;
+    goal.target_pose.pose.position.x = -1.95;
+    goal.target_pose.pose.position.y = -0.39;
+    goal.target_pose.pose.orientation.z = 0.09;
+    goal.target_pose.pose.orientation.w = 0.99;
     goalList.push_back(goal);
   }
-  {
+/*  {
     move_base_msgs::MoveBaseGoal goal;
     goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -1.42461895943;
-    goal.target_pose.pose.position.y = -1.2;
-    goal.target_pose.pose.orientation.z = -0.707106781187;
-    goal.target_pose.pose.orientation.w = 0.707106781187;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -1.53591871262;
-    goal.target_pose.pose.position.y = -1.81416416168;
-    goal.target_pose.pose.orientation.z = 1.0;
-    goal.target_pose.pose.orientation.w = 0.0;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -2.47638988495;
-    goal.target_pose.pose.position.y = -1.80303430557;
-    goal.target_pose.pose.orientation.z = 0.707106781187;
-    goal.target_pose.pose.orientation.w = 0.707106781187;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -2.35396170616;
-    goal.target_pose.pose.position.y = -0.328330993652;
-    goal.target_pose.pose.orientation.z = 0.0237893314409;
-    goal.target_pose.pose.orientation.w = 0.999716993809;
-    goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -1.86424839497;
-    goal.target_pose.pose.position.y = -0.15581779182;
-    goal.target_pose.pose.orientation.z = 0.0;
+    goal.target_pose.pose.position.x = -0.52;
+    goal.target_pose.pose.position.y = -0.08;
+    goal.target_pose.pose.orientation.z = 0.01;
     goal.target_pose.pose.orientation.w = 1.0;
     goalList.push_back(goal);
-  }
-  {
-    move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.pose.position.x = -0.506408452988;
-    goal.target_pose.pose.position.y = 0.0556491538882;
-    goal.target_pose.pose.orientation.z = -0.0124971500965;
-    goal.target_pose.pose.orientation.w = 0.999921907571;
-    goalList.push_back(goal);
-  }
+  }*/
 }
