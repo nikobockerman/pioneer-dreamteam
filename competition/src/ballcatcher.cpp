@@ -9,6 +9,8 @@ public:
   
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
+  
+  ros::NodeHandle nh_;
 };
 
 
