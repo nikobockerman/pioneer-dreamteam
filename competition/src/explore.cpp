@@ -85,7 +85,7 @@ void ExploreStateMachine::findTargetPoint (const nav_msgs::GetMap& mapServiceMsg
 {
   ROS_INFO("Finding explore point from map");
   // Find acceptable point from map.
-  std::uniform_int_distribution<int> point_from_map {0, mapServiceMsg.response.map.data.size() - 1};
+  std::uniform_int_distribution<long unsigned int> point_from_map {0, mapServiceMsg.response.map.data.size() - 1};
   std::default_random_engine re {};
   
   bool found = false;
