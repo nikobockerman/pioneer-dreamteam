@@ -23,6 +23,7 @@ public:
 
 private:
   void redBallsCallback(const competition::BallsMessage& redBallsList);
+  void stateChangeRequestCallback(const competition::StateMessage& requestedNewState);
   
   void stateChangeHandler (const robotstate::State& oldState) {};
   
@@ -31,6 +32,7 @@ private:
   ros::Timer startUpTimer_;
   
   ros::Subscriber redBallSub_;
+  ros::Subscriber stateChangeReqSub_;
   bool redBallsFound_;
   
   ros::Timer sendTimer_;
@@ -54,6 +56,7 @@ void MainStateMachine::init()
   }
   
   redBallSub_ = nh_.subscribe("red_balls", 10, &MainStateMachine::redBallsCallback, this);
+  stateChangeReqSub_ = nh_.subscribe("state_change_request", 10, &MainStateMachine::stateChangeRequestCallback, this);
 
   startUpTimer_ = nh_.createTimer (ros::Duration (START_UP_DELAY - LOOP_DELAY), &MainStateMachine::startUp, this, true, false);
   sendTimer_ = nh_.createTimer(ros::Duration(0.1), &MainStateMachine::checkState, this, true, false);
@@ -75,6 +78,16 @@ void MainStateMachine::startUp (const ros::TimerEvent& event)
 }
 
 
+void MainStateMachine::stateChangeRequestCallback(const competition::StateMessage& requestedNewState)
+{
+  robotstate::State newState = robotstate::uintToState(requestedNewState.new_state);
+  if (newState == robotstate::Explore or newState == robotstate::Shutdown or newState == robotstate::Undefined or newState == robotstate::Startup)
+    return;
+  currentState(newState);
+}
+
+
+
 void MainStateMachine::redBallsCallback (const competition::BallsMessage& redBallsList)
 {
   if (not redBallsList.balls.empty())
@@ -91,7 +104,6 @@ void MainStateMachine::shutdown()
   msg.new_state = currentState();
   statePub_.publish (msg);
 }
-
 
 
 void MainStateMachine::checkState (const ros::TimerEvent& event)
