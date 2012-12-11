@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "usbCommunication/usbCom.h"
+#include "competition/usbCom.h"
 #include <cstdlib>
 
 int main(int argc, char **argv) {
@@ -9,8 +9,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	ros::NodeHandle n;
-	ros::ServiceClient client = n.serviceClient<usbCommunication::usbCom>("usbCom");
-	usbCommunication::usbCom service;
+	ros::ServiceClient client = n.serviceClient<competition::usbCom>("usbCom");
+	competition::usbCom service;
 	service.request.command = atoi(argv[2]);
 	ROS_INFO("Request command was %d", atoi(argv[2]));
 	if(client.call(service)) {
