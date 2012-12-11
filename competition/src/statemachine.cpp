@@ -1,11 +1,14 @@
+#include <signal.h>
 #include <ros/ros.h>
 
 #include "common/robotstate.h"
+#include "competition/BallsMessage.h"
+
+sig_atomic_t volatile requestShutdown = 0;
 
 const double START_UP_DELAY = 10.0;
 const double LOOP_DELAY = 1.0;
 
-// TODO Listen to red balls topic.
 
 class MainStateMachine : public RobotState
 {
@@ -14,20 +17,29 @@ public:
   void init();
 
   void startUp (const ros::TimerEvent& event);
-  void runOnce (const ros::TimerEvent& event);
+  void checkState (const ros::TimerEvent& event);
+  
+  void shutdown();
 
 private:
-  virtual void stateChangeHandler (const robotstate::State& oldState) {};
+  void redBallsCallback(const competition::BallsMessage& redBallsList);
+  
+  void stateChangeHandler (const robotstate::State& oldState) {};
   
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
   ros::Timer startUpTimer_;
-  ros::Timer loopTimer_;
+  
+  ros::Subscriber redBallSub_;
+  bool redBallsFound_;
+  
+  ros::Timer loopTimer_; // Temp until red ball topic sends real messages
+  
 };
 
 
 MainStateMachine::MainStateMachine ()
-  : RobotState (false)
+  : RobotState (false), redBallsFound_(false)
 {
   currentState (robotstate::Startup);
 }
@@ -40,9 +52,11 @@ void MainStateMachine::init()
     ROS_ERROR ("Failed to advertise 'state_change' topic.");
     return;
   }
+  
+  redBallSub_ = nh_.subscribe("red_balls", 10, &MainStateMachine::redBallsCallback, this);
 
-  startUpTimer_ = nh_.createTimer (ros::Duration (START_UP_DELAY), &MainStateMachine::startUp, this, true, false);
-  loopTimer_ = nh_.createTimer(ros::Duration(LOOP_DELAY), &MainStateMachine::runOnce, this, false, false);
+  startUpTimer_ = nh_.createTimer (ros::Duration (START_UP_DELAY - LOOP_DELAY), &MainStateMachine::startUp, this, true, false);
+  loopTimer_ = nh_.createTimer(ros::Duration(LOOP_DELAY), &MainStateMachine::checkState, this, false, false);
 
   ROS_INFO ("Main State machine initialized");
 
@@ -56,24 +70,44 @@ void MainStateMachine::init()
 void MainStateMachine::startUp (const ros::TimerEvent& event)
 {
   ROS_INFO("Start up wait expired. Starting robot.");
-  
-  // TODO Check if red balls are found. If yes, set state to Approach and don't start loopTimer_.
-  // If not, then set state to Explore;
   loopTimer_.start();
 }
 
 
-void MainStateMachine::runOnce (const ros::TimerEvent& event)
+void MainStateMachine::redBallsCallback (const competition::BallsMessage& redBallsList)
+{
+  if (not redBallsList.balls.empty())
+    redBallsFound_ = true;
+}
+
+
+void MainStateMachine::shutdown()
+{
+  currentState(robotstate::Shutdown);
+  competition::StateMessage msg;
+  msg.new_state = currentState();
+  statePub_.publish (msg);
+}
+
+
+
+void MainStateMachine::checkState (const ros::TimerEvent& event)
 {
   switch (currentState()) {
     case robotstate::Startup:
-      currentState (robotstate::Explore);
+      if (redBallsFound_)
+        currentState(robotstate::Approach);
+      else
+        currentState (robotstate::Explore);
       break;
+      
     case robotstate::Explore:
-      currentState (robotstate::Approach);
+      if (redBallsFound_)
+        currentState (robotstate::Approach);
       break;
+    
     case robotstate::Approach:
-      currentState (robotstate::Explore);
+      // TODO Change away from Approach needs to be specified.
       break;
     default:
       currentState (robotstate::Startup);
@@ -85,13 +119,26 @@ void MainStateMachine::runOnce (const ros::TimerEvent& event)
 }
 
 
+void mySigIntHandler(int sig)
+{
+  requestShutdown = 1;
+}
+
+
 int main (int argc, char** argv)
 {
-  ros::init (argc, argv, "state_machine");
+  ros::init (argc, argv, "state_machine", ros::init_options::NoSigintHandler);
+  signal(SIGINT, mySigIntHandler);
   MainStateMachine mainState;
   mainState.init();
 
-  ros::spin();
+  while (not requestShutdown)
+  {
+    ros::spinOnce();
+    usleep(100000);
+  }
+  mainState.shutdown();
 
+  ros::shutdown();
   return 0;
 }
