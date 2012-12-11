@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 
 #include "common/robotstate.h"
+#include "competition/usbCom.h"
 
 class PickupStateMachine : public RobotState {
 public:
@@ -9,6 +10,7 @@ public:
   
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
+	bool catchBall();
 };
 
 
@@ -46,7 +48,8 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     case robotstate::Pickup:
       if (oldState != robotstate::Pickup)
       {
-        // TODO Call service to catch the ball
+        bool catch = catchBall();
+				//TODO
       }
       break;
     case robotstate::DriveToBase:
@@ -64,6 +67,20 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     default:
       break;
   }
+}
+
+bool PickupStateMachine::catchBall() {
+	//ros::NodeHandle n;
+	ros::ServiceClient client = nh_.serviceClient<competition::usbCom>("usbCom");
+	competition::usbCom service;
+	service.request.command = 1;
+	ROS_INFO("Requesting service to grab the ball...");
+	if(client.call(service)) {
+		std::string a = service.response.state;
+		ROS_INFO("Response was: %s", a.c_str());
+		return (a.compare("True") == 0) ? true : false; 
+	}
+	return false;
 }
 
 
