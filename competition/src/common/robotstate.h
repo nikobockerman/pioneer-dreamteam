@@ -13,7 +13,8 @@ namespace robotstate
     Undefined = 0,
     Startup = 1,
     Explore = 2,
-    Approach = 3
+    Approach = 3,
+    Shutdown = 9
   };
   State uintToState (const unsigned int& stateNro);
   std::string stateToString(const State& state);

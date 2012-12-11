@@ -16,6 +16,9 @@ namespace robotstate
       case 3:
         return Approach;
         break;
+      case 9:
+        return Shutdown;
+        break;
       default:
         return Undefined;
     }
@@ -24,15 +27,17 @@ namespace robotstate
   std::string stateToString(const State& state)
   {
     switch (state) {
-      case 1:
+      case Startup:
         return "Startup";
         break;
-      case 2:
+      case Explore:
         return "Explore";
         break;
-      case 3:
+      case Approach:
         return "Approach";
         break;
+      case Shutdown:
+        return "Shutdown";
       default:
         return "Undefined";
     }
