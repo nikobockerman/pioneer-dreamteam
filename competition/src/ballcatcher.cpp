@@ -10,8 +10,13 @@ public:
   
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
-	bool catchBall();
-	ros::NodeHandle nh_;
+  void requestStateChange(const robotstate::State& requestedState);
+  
+  bool catchBall();
+  void approachBall(const bool changedState);
+  
+  ros::NodeHandle nh_;
+  ros::Publisher statePub_;
 };
 
 
@@ -20,7 +25,17 @@ PickupStateMachine::PickupStateMachine(): RobotState()
 
 
 void PickupStateMachine::init()
-{}
+{
+  statePub_ = nh_.advertise<competition::StateMessage> ("state_change_request", 1, false);
+}
+
+
+void PickupStateMachine::requestStateChange(const robotstate::State& requestedState)
+{
+  competition::StateMessage msg;
+  msg.new_state = requestedState;
+  statePub_.publish (msg);
+}
 
 
 void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
@@ -31,7 +46,12 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     case robotstate::Approach:
       if (oldState != robotstate::Approach)
       {
+        approachBall(true);
         // TODO Find closest ball and a point close to it which is not inside a wall. Send that point to navigation.
+      }
+      else
+      {
+        approachBall(false);
       }
       break;
     case robotstate::Centering:
@@ -69,6 +89,13 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       break;
   }
 }
+
+
+void PickupStateMachine::approachBall(const bool changedState)
+{
+
+}
+
 
 bool PickupStateMachine::catchBall() {
 	//ros::NodeHandle n;
