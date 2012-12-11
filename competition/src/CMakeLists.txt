@@ -6,4 +6,4 @@ rosbuild_add_executable(statemachine statemachine.cpp ${ROBOT_STATE})
 rosbuild_add_executable(explore explore.cpp ${ROBOT_STATE})
 
 rosbuild_add_executable(laserposition laserposition.cpp)
-rosbuild_add_executable(usbComServer usbCom.cpp)
+rosbuild_add_executable(usbCom_Server usbCom.cpp)
