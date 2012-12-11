@@ -12,7 +12,7 @@ private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
   void requestStateChange(const robotstate::State& requestedState);
   
-  bool catchBall();
+  bool driveManipulator(int command);
   void approachBall(const bool changedState);
   
   ros::NodeHandle nh_;
@@ -69,8 +69,11 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     case robotstate::Pickup:
       if (oldState != robotstate::Pickup)
       {
-        bool catch = catchBall();
-				//TODO
+        bool catched = driveManipulator(1);
+				if (catched) requestStateChange(robotstate::DriveToBase);
+				else {
+					//TODO Under consideration
+				} 
       }
       break;
     case robotstate::DriveToBase:
@@ -82,7 +85,14 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     case robotstate::Drop:
       if (oldState != robotstate::Drop)
       {
-        // TODO Call service to drop the ball and reverse a little bit to leave the ball alone.
+        bool released = driveManipulator(0);
+				if (released) {
+					//TODO remove the dropped ball from the list
+					requestStateChange(robotstate::Approach);
+				}
+				else {
+					//TODO Under consideration
+				}
       }
       break;
     default:
@@ -97,16 +107,17 @@ void PickupStateMachine::approachBall(const bool changedState)
 }
 
 
-bool PickupStateMachine::catchBall() {
+bool PickupStateMachine::driveManipulator(int command) {
 	//ros::NodeHandle n;
 	ros::ServiceClient client = nh_.serviceClient<competition::usbCom>("usbCom");
 	competition::usbCom service;
-	service.request.command = 1;
-	ROS_INFO("Requesting service to grab the ball...");
+	service.request.command = command;
+	if (command == 1) ROS_INFO("Requesting service to grab the ball...");
+	else if (command == 0) ROS_INFO("Requesting service to release the ball...");
 	if(client.call(service)) {
 		std::string a = service.response.state;
 		ROS_INFO("Response was: %s", a.c_str());
-		return (a.compare("True") == 0) ? true : false; 
+		return (a.compare("True") == 0/*|| a.compare("Release") == 0*/) ? true : false; 
 	}
 	return false;
 }
