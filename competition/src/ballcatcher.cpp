@@ -11,6 +11,7 @@ public:
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
 	bool catchBall();
+	ros::NodeHandle nh_;
 };
 
 
