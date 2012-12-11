@@ -16,6 +16,21 @@ namespace robotstate
       case 3:
         return Approach;
         break;
+      case 4:
+        return Centering;
+        break;
+      case 5:
+        return DriveToBall;
+        break;
+      case 6:
+        return Pickup;
+        break;
+      case 7:
+        return DriveToBase;
+        break;
+      case 8:
+        return Drop;
+        break;
       case 9:
         return Shutdown;
         break;
@@ -35,6 +50,21 @@ namespace robotstate
         break;
       case Approach:
         return "Approach";
+        break;
+      case Centering:
+        return "Centering";
+        break;
+      case DriveToBall:
+        return "DriveToBall";
+        break;
+      case Pickup:
+        return "Pickup";
+        break;
+      case DriveToBase:
+        return "DriveToBase";
+        break;
+      case Drop:
+        return "Drop";
         break;
       case Shutdown:
         return "Shutdown";
