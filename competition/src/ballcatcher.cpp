@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
 
 #include "common/robotstate.h"
 #include "competition/usbCom.h"
@@ -14,9 +15,11 @@ private:
   
   bool driveManipulator(int command);
   void approachBall(const bool changedState);
+  void driveToBall();
   
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
+  ros::Publisher rosariaCmdPub_;
 };
 
 
@@ -27,6 +30,7 @@ PickupStateMachine::PickupStateMachine(): RobotState()
 void PickupStateMachine::init()
 {
   statePub_ = nh_.advertise<competition::StateMessage> ("state_change_request", 1, false);
+  rosariaCmdPub_ = nh_.advertise<geometry_msgs::Twist>("/RosAria/cmd_vel", 1, false);
 }
 
 
@@ -45,14 +49,9 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
   {
     case robotstate::Approach:
       if (oldState != robotstate::Approach)
-      {
         approachBall(true);
-        // TODO Find closest ball and a point close to it which is not inside a wall. Send that point to navigation.
-      }
       else
-      {
         approachBall(false);
-      }
       break;
     case robotstate::Centering:
       if (oldState != robotstate::Centering)
@@ -63,7 +62,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     case robotstate::DriveToBall:
       if (oldState != robotstate::DriveToBall)
       {
-        // TODO Drive straight ahead some small distance to get to the ball.
+        driveToBall();
       }
       break;
     case robotstate::Pickup:
@@ -73,7 +72,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 				if (catched) requestStateChange(robotstate::DriveToBase);
 				else {
 					//TODO Under consideration
-				} 
+				}
       }
       break;
     case robotstate::DriveToBase:
@@ -101,9 +100,39 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 }
 
 
+void PickupStateMachine::driveToBall()
+{
+  // TODO Drive straight ahead some small distance to get to the ball.
+  // Send forward command to RosAria, wait some time and send stop command to RosAria.
+  // Then change state to Pickup.
+  geometry_msgs::Twist straight;
+  straight.linear.x = 0.1;
+  rosariaCmdPub_.publish(straight);
+  
+  // Wait until the desired distance is travelled.
+  sleep(1000);
+  
+  // Stop the robot
+  geometry_msgs::Twist stop;
+  rosariaCmdPub_.publish(stop);
+  
+  requestStateChange(robotstate::Pickup);
+}
+
+
 void PickupStateMachine::approachBall(const bool changedState)
 {
-
+  if (changedState)
+  {
+    // TODO Find the approach point.
+    // send that point to navigation
+    // Start timer for checking the status
+  }
+  else
+  {
+    // TODO Check whether we have reached the point.
+    // When reached, stop timer, change state to Centering.
+  }
 }
 
 
