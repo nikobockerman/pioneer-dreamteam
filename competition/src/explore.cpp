@@ -5,6 +5,7 @@
 #include <tf/transform_listener.h>
 #include <move_base_msgs/MoveBaseAction.h>
 #include <move_base_msgs/MoveBaseGoal.h>
+#include <occupancy_grid_utils/coordinate_conversions.h>
 
 #include "common/robotstate.h"
 
@@ -21,7 +22,7 @@ public:
 private:
   virtual void stateChangeHandler (const robotstate::State& oldState);
   
-  void findTargetPoint(const nav_msgs::GetMap& mapServiceMsg, move_base_msgs::MoveBaseGoal& goal);
+  bool findTargetPoint(const nav_msgs::GetMap& mapServiceMsg, move_base_msgs::MoveBaseGoal& goal);
   void sendNewGoal();
   
   ros::NodeHandle nh_;
@@ -35,11 +36,13 @@ private:
   tf::TransformListener listener_;
   geometry_msgs::PoseStamped robotBase_;
   geometry_msgs::PoseStamped goalPose_;
+  
+  std::default_random_engine re_;
 };
 
 
 ExploreStateMachine::ExploreStateMachine ()
-  : RobotState(), moveClient_(nh_, "move_base")
+  : RobotState(), moveClient_(nh_, "move_base"), re_({})
 {
   robotBase_.header.frame_id = "base_link";
   robotBase_.pose.position.x = 0.0;
@@ -55,7 +58,7 @@ void ExploreStateMachine::init()
     ROS_INFO("Waiting for the move_base action server to come up");
   }
   
-  moveSrvClient_ = nh_.serviceClient<nav_msgs::GetPlan>("make_plan");
+  moveSrvClient_ = nh_.serviceClient<nav_msgs::GetPlan>("move_base/make_plan");
   mapClient_ = nh_.serviceClient<nav_msgs::GetMap>("dynamic_map");
   rosariaPub_ = nh_.advertise<geometry_msgs::Twist> ("/RosAria/cmd_vel", 1, true);
   
@@ -81,36 +84,45 @@ void ExploreStateMachine::stateChangeHandler (const robotstate::State& oldState)
 }
 
 
-void ExploreStateMachine::findTargetPoint (const nav_msgs::GetMap& mapServiceMsg, move_base_msgs::MoveBaseGoal& goal)
+bool ExploreStateMachine::findTargetPoint (const nav_msgs::GetMap& mapServiceMsg, move_base_msgs::MoveBaseGoal& goal)
 {
   ROS_INFO("Finding explore point from map");
   // Find acceptable point from map.
   std::uniform_int_distribution<long unsigned int> point_from_map {0, mapServiceMsg.response.map.data.size() - 1};
-  std::default_random_engine re {};
   
   bool found = false;
   
-  float resolution = mapServiceMsg.response.map.info.resolution;
-  uint32_t width = mapServiceMsg.response.map.info.width;
+  //float resolution = mapServiceMsg.response.map.info.resolution;
+  //uint32_t width = mapServiceMsg.response.map.info.width;
   //uint32_t height = mapServiceMsg.response.map.info.height;
+
+  move_base_msgs::MoveBaseGoal tempGoal;
   
-  while (not found and currentState() == robotstate::Explore)
+  while (not found)
   {
+    if (currentState() != robotstate::Explore)
+      return false;
+    
     ROS_INFO("Trying to find a random point");
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.header.stamp = ros::Time::now();
-    int index = point_from_map(re);
+    tempGoal = move_base_msgs::MoveBaseGoal();
+    tempGoal.target_pose.header.frame_id = "map";
+    tempGoal.target_pose.header.stamp = ros::Time::now();
+    int index = point_from_map(re_);
+    
+    occupancy_grid_utils::Cell randomCell = occupancy_grid_utils::indexCell(mapServiceMsg.response.map.info, index);
     int value = mapServiceMsg.response.map.data.at(index);
     ROS_INFO("Random index: %i, value at that index: %i", index, value);
+    
     if (not (value == -1 or value >0)) // Point is free TODO Check that 0 is actually free space
     {
       ROS_INFO("Value was 0");
       // check if navigation can find a route to the point.
-      goal.target_pose.pose.position.x = (index / width) * resolution;
-      goal.target_pose.pose.position.y = (index % width) * resolution;
-      goal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+      tempGoal.target_pose.pose.position = occupancy_grid_utils::cellCenter(mapServiceMsg.response.map.info, randomCell);
+      /*tempGoal.target_pose.pose.position.x = (index / width) * resolution;
+      tempGoal.target_pose.pose.position.y = (index % width) * resolution;*/
+      tempGoal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
       
-      ROS_INFO("Coordinates of the point: x(%f), y(%f)", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
+      ROS_INFO("Coordinates of the point: x(%f), y(%f)", tempGoal.target_pose.pose.position.x, tempGoal.target_pose.pose.position.y);
       // Get current position
       geometry_msgs::PoseStamped currentPosition;
       ros::Time currentTransform = ros::Time::now();
@@ -120,21 +132,29 @@ void ExploreStateMachine::findTargetPoint (const nav_msgs::GetMap& mapServiceMsg
       
       nav_msgs::GetPlan plan;
       plan.request.start = currentPosition;
-      plan.request.goal = goal.target_pose;
+      plan.request.goal = tempGoal.target_pose;
       plan.request.tolerance = 0.5;
       if (not moveSrvClient_.call(plan)) // Test if navigation can make a plan to the point
-        ROS_ERROR("Failed to call service");
+      {      
+        ROS_ERROR("Path not found");
+      }
       else
       {
         ROS_INFO("Plan received. Number of poses: %i", plan.response.plan.poses.size()); 
         if (plan.response.plan.poses.size() > 0)
         {
-          goal.target_pose = plan.response.plan.poses.back();
-          ROS_INFO("Coordinates of the last pose in the plan: x(%f), y(%f)", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
+          tempGoal.target_pose = plan.response.plan.poses.back();
+          ROS_INFO("Coordinates of the last pose in the plan: x(%f), y(%f)", tempGoal.target_pose.pose.position.x, tempGoal.target_pose.pose.position.y);
         }
+        found = true;
       }
     }
+    if (not found)
+      ros::spinOnce();
   }
+  
+  goal = tempGoal;
+  return true;
 }
 
 
@@ -155,7 +175,14 @@ void ExploreStateMachine::sendNewGoal()
   else
   {
     // Get target point from map
-    findTargetPoint(getMap, goal);
+    if (not findTargetPoint(getMap, goal))
+    {
+      goal.target_pose.header.frame_id = "base_link";
+      goal.target_pose.header.stamp = ros::Time::now();
+      goal.target_pose.pose.position.x = 1.0;
+      goal.target_pose.pose.position.y = 0.0;
+      goal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+    }
   }
   
   if (currentState() == robotstate::Explore)
@@ -168,14 +195,13 @@ void ExploreStateMachine::sendNewGoal()
 }
 
 
-
-
 void ExploreStateMachine::runOnce (const ros::TimerEvent& event)
 {
   if (currentState() != robotstate::Explore)
     return;
   
   actionlib::SimpleClientGoalState navigationState = moveClient_.getState();
+  ROS_INFO("Navigation state: %s", navigationState.toString().c_str());
   if (navigationState == actionlib::SimpleClientGoalState::ACTIVE)
   {
     // TODO

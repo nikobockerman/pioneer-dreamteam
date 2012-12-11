@@ -33,7 +33,7 @@ private:
   ros::Subscriber redBallSub_;
   bool redBallsFound_;
   
-  ros::Timer loopTimer_; // Temp until red ball topic sends real messages
+  ros::Timer sendTimer_;
   
 };
 
@@ -56,7 +56,7 @@ void MainStateMachine::init()
   redBallSub_ = nh_.subscribe("red_balls", 10, &MainStateMachine::redBallsCallback, this);
 
   startUpTimer_ = nh_.createTimer (ros::Duration (START_UP_DELAY - LOOP_DELAY), &MainStateMachine::startUp, this, true, false);
-  loopTimer_ = nh_.createTimer(ros::Duration(LOOP_DELAY), &MainStateMachine::checkState, this, false, false);
+  sendTimer_ = nh_.createTimer(ros::Duration(0.1), &MainStateMachine::checkState, this, true, false);
 
   ROS_INFO ("Main State machine initialized");
 
@@ -70,7 +70,8 @@ void MainStateMachine::init()
 void MainStateMachine::startUp (const ros::TimerEvent& event)
 {
   ROS_INFO("Start up wait expired. Starting robot.");
-  loopTimer_.start();
+  sendTimer_.start();
+  
 }
 
 
@@ -78,6 +79,8 @@ void MainStateMachine::redBallsCallback (const competition::BallsMessage& redBal
 {
   if (not redBallsList.balls.empty())
     redBallsFound_ = true;
+  else
+    redBallsFound_ = false;
 }
 
 
@@ -93,7 +96,8 @@ void MainStateMachine::shutdown()
 
 void MainStateMachine::checkState (const ros::TimerEvent& event)
 {
-  switch (currentState()) {
+  robotstate::State oldState = currentState();
+  switch (oldState) {
     case robotstate::Startup:
       if (redBallsFound_)
         currentState(robotstate::Approach);
@@ -112,10 +116,14 @@ void MainStateMachine::checkState (const ros::TimerEvent& event)
     default:
       currentState (robotstate::Startup);
   }
-  ROS_INFO ("Sending new state %s", robotstate::stateToString(currentState()).c_str());
-  competition::StateMessage msg;
-  msg.new_state = currentState();
-  statePub_.publish (msg);
+  
+  if (oldState != currentState())
+  {
+    ROS_INFO ("Sending new state %s", robotstate::stateToString(currentState()).c_str());
+    competition::StateMessage msg;
+    msg.new_state = currentState();
+    statePub_.publish (msg);
+  }
 }
 
 
