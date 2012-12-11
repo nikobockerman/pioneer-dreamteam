@@ -1,12 +1,16 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <actionlib/client/simple_action_client.h>
+#include <nav_msgs/GetPlan.h>
 #include <move_base_msgs/MoveBaseGoal.h>
 #include <move_base_msgs/MoveBaseAction.h>
 #include <tf/transform_listener.h>
 
 #include "common/robotstate.h"
+#include "common/functions.h"
 #include "competition/usbCom.h"
+#include <competition/Ball.h>
+#include <competition/Balls.h>
 
 class PickupStateMachine : public RobotState {
 public:
@@ -21,23 +25,35 @@ private:
   void approachBall(const bool changedState);
   void driveToBall();
   void driveToBase();
-  move_base_msgs::MoveBaseGoal findPointToGoal();
+  move_base_msgs::MoveBaseGoal findPointToBase();
+  move_base_msgs::MoveBaseGoal findPointToBall();
+  competition::Ball findClosestRedBall(const geometry_msgs::Pose& currentPosition);
   
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
   ros::Publisher rosariaCmdPub_;
   tf::TransformListener listener_;
+  
+  ros::ServiceClient redBallsClient_;
+  ros::ServiceClient moveSrvClient_;
+  actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
 };
 
 
-PickupStateMachine::PickupStateMachine(): RobotState()
+PickupStateMachine::PickupStateMachine() : RobotState(), moveClient_(nh_, "move_base")
 {}
 
 
 void PickupStateMachine::init()
 {
+  while(!moveClient_.waitForServer(ros::Duration(2.0))){
+    ROS_INFO("Waiting for the move_base action server to come up");
+  }
+  
   statePub_ = nh_.advertise<competition::StateMessage> ("state_change_request", 1, false);
   rosariaCmdPub_ = nh_.advertise<geometry_msgs::Twist>("/RosAria/cmd_vel", 1, false);
+  redBallsClient_ = nh_.serviceClient<competition::Balls>("red_balls");
+  moveSrvClient_ = nh_.serviceClient<nav_msgs::GetPlan>("move_base/make_plan");
 }
 
 
@@ -124,30 +140,15 @@ void PickupStateMachine::driveToBall()
   rosariaCmdPub_.publish(stop);
 }
 
-double distanceBetweenPoints(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2)
+move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBase()
 {
-  double xDiff = point2.x - point1.x;
-  double yDiff = point2.y - point1.y;
-  return sqrt((yDiff*yDiff) / (xDiff*xDiff));
-}
-
-move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
-{
+  // TODO specify this distance
   const double distanceToOrigo = 0.35; // Distance to origo from the goal point i.e., distance from base_link to gripper
   
   move_base_msgs::MoveBaseGoal goal;
     
   // Current position
-  geometry_msgs::PoseStamped currentPosition;
-  geometry_msgs::PoseStamped robotBase;
-  robotBase.header.frame_id = "base_link";
-  robotBase.pose.position.x = 0.0;
-  robotBase.pose.position.y = 0.0;
-  robotBase.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-  ros::Time currentTransform = ros::Time::now();
-  listener_.getLatestCommonTime(robotBase.header.frame_id, "map", currentTransform, NULL);
-  robotBase.header.stamp = currentTransform;
-  listener_.transformPose("map", robotBase, currentPosition);
+  geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
   
   // Calculate point which is distanceToOrigo meters away from origo and in the line from currentPosition to origo.
   //x,y: sqrt(x1^2 + y1^2) = distanceToOrigo --> distanceToOrigo^2 = x1^2 + y1^2;
@@ -155,15 +156,15 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
   double k = currentPosition.pose.position.y / currentPosition.pose.position.x;
   goalPoint1.x = sqrt((distanceToOrigo * distanceToOrigo) / (1 + k * k));
   goalPoint2.x = -goalPoint1.x;
-  goalPoint1.y = k * goalPoint.x;
-  goalPoint2.y = goalPoint1.y;
+  goalPoint1.y = k * goalPoint1.x;
+  goalPoint2.y = k * goalPoint2.x;
   
-  if (distanceBetweenPoints(currentPosition.pose.position, goalPoint1) < distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
+  if (competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint1) < competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
     goalPoint = goalPoint1;
   else
     goalPoint = goalPoint2;
   
-  double yaw = acos(goalPoint.x / distanceToOrigo);
+  double yaw = atan2(goalPoint.y, goalPoint.x);
   
   goal.target_pose.header.frame_id = "map";
   goal.target_pose.header.stamp = ros::Time::now();
@@ -174,10 +175,112 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
 }
 
 
+competition::Ball PickupStateMachine::findClosestRedBall(const geometry_msgs::Pose& currentPosition)
+{
+  competition::Balls redBalls;
+  redBallsClient_.call(redBalls);
+  
+  double shortest = -1;
+  competition::Ball closest;
+  for (competition::Ball ball : redBalls.response.balls.balls)
+  {
+    double distance = competition::distanceBetweenPoints(currentPosition.position, ball.location);
+    if (shortest < 0 or distance < shortest)
+    {
+      shortest = distance;
+      closest = ball;
+    }
+  }
+  return closest;
+}
+
+
+
+move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall()
+{
+  // TODO specify this distance
+  const double distanceToBall = 0.40; // Distance to origo from the goal point i.e., distance from base_link to gripper
+ 
+  // Current position
+  geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
+  
+  competition::Ball closest = findClosestRedBall(currentPosition.pose);
+ 
+  move_base_msgs::MoveBaseGoal goal;
+  move_base_msgs::MoveBaseGoal tempGoal;
+  
+  bool foundPoint {false};
+  bool triedStraight {false};
+  while (not foundPoint)
+  {
+    tempGoal = move_base_msgs::MoveBaseGoal();
+    tempGoal.target_pose.header.frame_id = "map";
+    tempGoal.target_pose.header.stamp = ros::Time::now();
+    
+    geometry_msgs::Point goalPoint;
+    double yaw {0.0};
+    if (not triedStraight)
+    {
+      // Try point straight from robot to point
+      geometry_msgs::Point goalPoint1, goalPoint2;
+      double x1 = currentPosition.pose.position.x;
+      double y1 = currentPosition.pose.position.y;
+      double x2 = closest.location.x;
+      double y2 = closest.location.y;
+      double xDiff = x2 - x1;
+      double yDiff = y2 - y1;
+      double k = yDiff / xDiff;
+      double a = 1 + k * k;
+      double b = 2 * x2 * (1 + k);
+      double c = x2 * x2 - distanceToBall * distanceToBall + y2 * y2;
+      
+      goalPoint1.x = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+      goalPoint2.x = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+      goalPoint1.y = k * goalPoint1.x;
+      goalPoint2.y = k * goalPoint2.x;
+      
+      if (competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint1) < competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
+        goalPoint = goalPoint1;
+      else
+        goalPoint = goalPoint2;
+      
+      yaw = atan2(goalPoint.y - y2, goalPoint.x - x2);
+      
+      triedStraight = true;
+    }
+    else
+    {
+      // TODO Find another possible point along the circle around the ball.
+      ROS_ERROR("TODO Find another possible point along the circle around the ball.");
+    }
+    
+    tempGoal.target_pose.pose.position = goalPoint;
+    tempGoal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+    
+    nav_msgs::GetPlan plan;
+    plan.request.start = currentPosition;
+    plan.request.goal = tempGoal.target_pose;
+    plan.request.tolerance = 0.01;
+    
+    if (not moveSrvClient_.call(plan)) // Test if navigation can make a plan to the point
+    {      
+      ROS_ERROR("Path not found");
+    }
+    else
+    {
+      // TODO check that poses.size() > 0 if required. Test that with explore.
+      goal = tempGoal;
+      foundPoint = true;
+    }
+  }
+  
+  return goal;
+}
+
 
 void PickupStateMachine::driveToBase()
 {
-  move_base_msgs::MoveBaseGoal goal = findPointToGoal();
+  move_base_msgs::MoveBaseGoal goal = findPointToBase();
   
   actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient(nh_, "move_base");
   while(!moveClient.waitForServer(ros::Duration(2.0))){
@@ -190,6 +293,7 @@ void PickupStateMachine::driveToBase()
 
 void PickupStateMachine::approachBall(const bool changedState)
 {
+  
   if (changedState)
   {
     // TODO Find the approach point.
