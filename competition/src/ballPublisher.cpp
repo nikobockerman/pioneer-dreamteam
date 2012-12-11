@@ -1,0 +1,153 @@
+#include <ros/ros.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <competition/BallsMessage.h>
+#include <competition/removeBall.h>
+
+const uint8_t RED {0};
+const uint8_t GREEN {1};
+
+const double MIN_DIST_BETWEEN_BALLS {0.15};
+const double PUBLISH_DELAY {0.1};
+
+double distanceBetweenPoints(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2);
+
+class BallPublisher {
+public:
+  BallPublisher();
+  void init();
+  
+private:
+  void visibleBallsCallback(const competition::BallsMessage& seenBalls);
+  void publishTimerCallback(const ros::TimerEvent& event);
+  bool ballRemoveService(competition::removeBall::Request& req, competition::removeBall::Response& res);
+  
+  ros::NodeHandle nh_;
+  ros::Publisher redBallsPub_;
+  ros::Publisher pointCloudPub_;
+  ros::Subscriber ballsSub_;
+  ros::ServiceServer ballRemoveSrv_;
+  ros::Timer publishTimer_;
+  
+  std::vector<competition::Ball> redBalls_;
+  std::vector<competition::Ball> greenBalls_;
+};
+
+
+BallPublisher::BallPublisher()
+{}
+
+
+void BallPublisher::init()
+{
+  redBallsPub_ = nh_.advertise<competition::BallsMessage> ("red_balls", 1, true);
+  pointCloudPub_ = nh_.advertise<pcl::PointCloud<pcl::PointXY>>("green_balls", 1, false);
+  
+  ballsSub_ = nh_.subscribe("visible_balls", 10, &BallPublisher::visibleBallsCallback, this);
+  ballRemoveSrv_ = nh_.advertiseService("remove_red_ball", &BallPublisher::ballRemoveService, this);
+  
+  publishTimer_ = nh_.createTimer(ros::Duration (PUBLISH_DELAY), &BallPublisher::publishTimerCallback, this, false, true);
+}
+
+
+bool BallPublisher::ballRemoveService (competition::removeBall::Request& req, competition::removeBall::Response& res)
+{
+  std::vector<competition::Ball>::iterator iter = redBalls_.begin();
+  bool removed {false};
+  while (iter != redBalls_.end())
+  {
+    if (distanceBetweenPoints(req.ballToRemove.location, iter->location) < MIN_DIST_BETWEEN_BALLS)
+    {
+      redBalls_.erase(iter);
+      removed = true;
+      break;
+    }
+  }
+  res.success = removed;
+  return true;
+}
+
+
+void BallPublisher::publishTimerCallback (const ros::TimerEvent& event)
+{
+  competition::BallsMessage redMsg;
+  redMsg.header.frame_id = "map";
+  redMsg.header.stamp = ros::Time::now();
+  redMsg.balls = redBalls_;
+  redBallsPub_.publish(redMsg);
+  
+  pcl::PointCloud<pcl::PointXY> greenMsg;
+  greenMsg.header.frame_id = "map";
+  greenMsg.header.stamp = ros::Time::now();
+  greenMsg.height = 1;
+  greenMsg.width = greenBalls_.size();
+  for (competition::Ball ball : greenBalls_)
+  {
+    pcl::PointXY point;
+    point.x = ball.location.x;
+    point.y = ball.location.y;
+    greenMsg.points.push_back(point);
+  }
+  pointCloudPub_.publish(greenMsg);
+}
+
+
+
+double distanceBetweenPoints(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2)
+{
+  double xDiff = point2.x - point1.x;
+  double yDiff = point2.y - point1.y;
+  return sqrt((yDiff*yDiff) / (xDiff*xDiff));
+}
+
+
+void checkNewBalls(std::vector<competition::Ball>& mainList, std::vector<competition::Ball>& newList)
+{
+  for (competition::Ball ball : newList)
+  {
+    bool newBall {true};
+    for (competition::Ball oldBall : mainList)
+    {
+      if (distanceBetweenPoints(oldBall.location, ball.location) < MIN_DIST_BETWEEN_BALLS)
+      {
+        oldBall.location = ball.location;
+        newBall = false;
+        break;
+      }
+    }
+    if (newBall)
+      mainList.push_back(ball);
+  }
+}
+
+void BallPublisher::visibleBallsCallback (const competition::BallsMessage& seenBalls)
+{
+  // Separate
+  std::vector<competition::Ball> newGreens;
+  std::vector<competition::Ball> newReds;
+  
+  for (competition::Ball ball : seenBalls.balls)
+  {
+    if (ball.color == RED)
+      newReds.push_back(ball);
+    else
+      newGreens.push_back(ball);
+  }
+  
+  checkNewBalls(greenBalls_, newGreens);
+  checkNewBalls(redBalls_, newReds);
+}
+
+
+
+int main(int argc, char** argv){
+  ros::init(argc, argv, "explore");
+  BallPublisher ballPublisher;
+  ballPublisher.init();
+  
+  ROS_INFO("Ball publisher node started");
+  
+  ros::spin();
+  
+  return 0;
+}
