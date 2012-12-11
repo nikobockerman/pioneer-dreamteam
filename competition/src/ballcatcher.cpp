@@ -1,5 +1,8 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
+#include <actionlib/client/simple_action_client.h>
+#include <move_base_msgs/MoveBaseGoal.h>
+#include <move_base_msgs/MoveBaseAction.h>
 
 #include "common/robotstate.h"
 #include "competition/usbCom.h"
@@ -16,6 +19,8 @@ private:
   bool catchBall();
   void approachBall(const bool changedState);
   void driveToBall();
+  void driveToBase();
+  move_base_msgs::MoveBaseGoal findPointToGoal();
   
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
@@ -63,6 +68,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       if (oldState != robotstate::DriveToBall)
       {
         driveToBall();
+        requestStateChange(robotstate::Pickup);
       }
       break;
     case robotstate::Pickup:
@@ -75,7 +81,8 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
     case robotstate::DriveToBase:
       if (oldState != robotstate::DriveToBase)
       {
-        // TODO Send such goal to navigation that the grippers end coordinates are at (0, 0).
+        driveToBase();
+        requestStateChange(robotstate::Drop);
       }
       break;
     case robotstate::Drop:
@@ -92,9 +99,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 
 void PickupStateMachine::driveToBall()
 {
-  // TODO Drive straight ahead some small distance to get to the ball.
-  // Send forward command to RosAria, wait some time and send stop command to RosAria.
-  // Then change state to Pickup.
+  // TODO Configure speed and sleep time so that the end movement is as long as desired.
   geometry_msgs::Twist straight;
   straight.linear.x = 0.1;
   rosariaCmdPub_.publish(straight);
@@ -105,8 +110,30 @@ void PickupStateMachine::driveToBall()
   // Stop the robot
   geometry_msgs::Twist stop;
   rosariaCmdPub_.publish(stop);
+}
+
+
+move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
+{
+  move_base_msgs::MoveBaseGoal goal;
+  // TODO Set goal to some nice point.
+  // For example point in line from robot to (0,0) and some specific distance away from origo.
   
-  requestStateChange(robotstate::Pickup);
+  return goal;
+}
+
+
+
+void PickupStateMachine::driveToBase()
+{
+  move_base_msgs::MoveBaseGoal goal = findPointToGoal();
+  
+  actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient(nh_, "move_base");
+  while(!moveClient.waitForServer(ros::Duration(2.0))){
+    ROS_INFO("Waiting for the move_base action server to come up");
+  }
+  actionlib::SimpleClientGoalState resultState = moveClient.sendGoalAndWait(goal);
+  ROS_INFO("Result of navigation: %s", resultState.toString().c_str()); 
 }
 
 
