@@ -3,6 +3,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <move_base_msgs/MoveBaseGoal.h>
 #include <move_base_msgs/MoveBaseAction.h>
+#include <tf/transform_listener.h>
 
 #include "common/robotstate.h"
 #include "competition/usbCom.h"
@@ -25,6 +26,7 @@ private:
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
   ros::Publisher rosariaCmdPub_;
+  tf::TransformListener listener_;
 };
 
 
@@ -115,9 +117,31 @@ void PickupStateMachine::driveToBall()
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
 {
+  const double distanceToOrigo = 0.35; // Distance to origo from the goal point i.e., distance from base_link to gripper
+  
   move_base_msgs::MoveBaseGoal goal;
   // TODO Set goal to some nice point.
   // For example point in line from robot to (0,0) and some specific distance away from origo.
+  
+  // Current position
+  geometry_msgs::PoseStamped currentPosition;
+  geometry_msgs::PoseStamped robotBase;
+  robotBase.header.frame_id = "base_link";
+  robotBase.pose.position.x = 0.0;
+  robotBase.pose.position.y = 0.0;
+  robotBase.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+  ros::Time currentTransform = ros::Time::now();
+  listener_.getLatestCommonTime(robotBase.header.frame_id, "map", currentTransform, NULL);
+  robotBase.header.stamp = currentTransform;
+  listener_.transformPose("map", robotBase, currentPosition);
+  
+  // Calculate point which is distanceToOrigo meters away from origo and in the line from currentPosition to origo.
+  //x,y: sqrt(x1^2 + y1^2) = distanceToOrigo --> distanceToOrigo^2 = x1^2 + y1^2;
+  
+  
+  // Create a line from current position to origo.
+  //double k = ((0 - currentPosition.pose.position.y) / (0 - currentPosition.pose.position.x));
+  
   
   return goal;
 }
