@@ -33,7 +33,7 @@ void TransformSender::sendTransform (const ros::TimerEvent& event)
 
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "robot_tf_publisher");
+  ros::init(argc, argv, "laser_tf_publisher");
   TransformSender tfSender;
   ros::spin();
 }
