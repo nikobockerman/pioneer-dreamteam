@@ -124,15 +124,19 @@ void PickupStateMachine::driveToBall()
   rosariaCmdPub_.publish(stop);
 }
 
+double distanceBetweenPoints(const geometry_msgs::Point& point1, const geometry_msgs::Point& point2)
+{
+  double xDiff = point2.x - point1.x;
+  double yDiff = point2.y - point1.y;
+  return sqrt((yDiff*yDiff) / (xDiff*xDiff));
+}
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
 {
   const double distanceToOrigo = 0.35; // Distance to origo from the goal point i.e., distance from base_link to gripper
   
   move_base_msgs::MoveBaseGoal goal;
-  // TODO Set goal to some nice point.
-  // For example point in line from robot to (0,0) and some specific distance away from origo.
-  
+    
   // Current position
   geometry_msgs::PoseStamped currentPosition;
   geometry_msgs::PoseStamped robotBase;
@@ -147,11 +151,24 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToGoal()
   
   // Calculate point which is distanceToOrigo meters away from origo and in the line from currentPosition to origo.
   //x,y: sqrt(x1^2 + y1^2) = distanceToOrigo --> distanceToOrigo^2 = x1^2 + y1^2;
+  geometry_msgs::Point goalPoint, goalPoint1, goalPoint2;
+  double k = currentPosition.pose.position.y / currentPosition.pose.position.x;
+  goalPoint1.x = sqrt((distanceToOrigo * distanceToOrigo) / (1 + k * k));
+  goalPoint2.x = -goalPoint1.x;
+  goalPoint1.y = k * goalPoint.x;
+  goalPoint2.y = goalPoint1.y;
   
+  if (distanceBetweenPoints(currentPosition.pose.position, goalPoint1) < distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
+    goalPoint = goalPoint1;
+  else
+    goalPoint = goalPoint2;
   
-  // Create a line from current position to origo.
-  //double k = ((0 - currentPosition.pose.position.y) / (0 - currentPosition.pose.position.x));
+  double yaw = acos(goalPoint.x / distanceToOrigo);
   
+  goal.target_pose.header.frame_id = "map";
+  goal.target_pose.header.stamp = ros::Time::now();
+  goal.target_pose.pose.position = goalPoint;
+  goal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
   
   return goal;
 }
