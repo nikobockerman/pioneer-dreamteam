@@ -168,24 +168,30 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
     else
     {
       float angle = msg.response.angle;
+      ROS_INFO("Received angle: %f", angle);
       if (abs(angle) < angleLimit)
       {
         // Reached required angle.
+        ROS_INFO("Robot aligned");
         distance = msg.response.distance;
         ballToPickup = msg.response.ball;
         aligned = true;
       }
       else
       {
+        ROS_INFO("Turning robot");
         geometry_msgs::Twist turnMsg;
         turnMsg.angular.z = rotateSpeed;
         rosariaCmdPub_.publish(turnMsg);
         
+        ROS_INFO("Sleeping for %f", rotateTimeScale * angle);
         // Sleep time required to rotate to the desired angle.
         sleep(rotateTimeScale * angle);
         
+        ROS_INFO("Stopping robot");
         geometry_msgs::Twist stopMsg;
         rosariaCmdPub_.publish(stopMsg);
+        ROS_INFO("Robot stopped");
       }
     }
   }
@@ -202,16 +208,20 @@ void PickupStateMachine::driveToBall(const double& distanceToBall)
   double speed{0.1};
   double driveTimeScale{100};
   
+  ROS_INFO("Sending straing speed");
   geometry_msgs::Twist straight;
   straight.linear.x = speed;
   rosariaCmdPub_.publish(straight);
   
+  ROS_INFO("Sleeping for %f", driveTimeScale * distanceToBall);
   // Wait until the desired distance is travelled.
   sleep(driveTimeScale * distanceToBall);
   
   // Stop the robot
+  ROS_INFO("Stopping robot");
   geometry_msgs::Twist stop;
   rosariaCmdPub_.publish(stop);
+  ROS_INFO("Robot stopped");
 }
 
 
