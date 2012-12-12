@@ -11,7 +11,7 @@
 const uint8_t RED {0};
 const uint8_t GREEN {1};
 
-const double MIN_DIST_BETWEEN_BALLS {0.15};
+const double MIN_DIST_BETWEEN_BALLS {150}; //TODO Check in robo room.
 const double PUBLISH_DELAY {0.1};
 
 class BallPublisher {
@@ -86,22 +86,23 @@ bool BallPublisher::redBallsService (competition::Balls::Request& req, competiti
 
 void BallPublisher::publishTimerCallback (const ros::TimerEvent& event)
 {
+  ROS_INFO("Publishing red and green balls");
   competition::BallsMessage redMsg;
-  redMsg.header.frame_id = "map";
+  redMsg.header.frame_id = "/map";
   redMsg.header.stamp = ros::Time::now();
   redMsg.balls = redBalls_;
   redBallsPub_.publish(redMsg);
   
-  pcl::PointCloud<pcl::PointXY> greenMsg;
-  greenMsg.header.frame_id = "map";
+  pcl::PointCloud<pcl::PointXYZ> greenMsg;
+  greenMsg.header.frame_id = "/map";
   greenMsg.header.stamp = ros::Time::now();
   greenMsg.height = 1;
   greenMsg.width = greenBalls_.size();
   for (competition::Ball ball : greenBalls_)
   {
-    pcl::PointXY point;
-    point.x = ball.location.x;
-    point.y = ball.location.y;
+    pcl::PointXYZ point(ball.location.x,ball.location.y,0.0);
+    /*point.x = ball.location.x;
+    point.y = ball.location.y;*/
     greenMsg.points.push_back(point);
   }
   pointCloudPub_.publish(greenMsg);
@@ -115,6 +116,7 @@ void checkNewBalls(std::vector<competition::Ball>& mainList, std::vector<competi
     bool newBall {true};
     for (competition::Ball oldBall : mainList)
     {
+      ROS_INFO("Distance between balls: %f", competition::distanceBetweenPoints(oldBall.location, ball.location));
       if (competition::distanceBetweenPoints(oldBall.location, ball.location) < MIN_DIST_BETWEEN_BALLS)
       {
         oldBall.location = ball.location;
@@ -129,6 +131,7 @@ void checkNewBalls(std::vector<competition::Ball>& mainList, std::vector<competi
 
 void BallPublisher::visibleBallsCallback (const competition::BallsMessage& seenBalls)
 {
+  ROS_INFO("Received list of current balls: %i", seenBalls.balls.size());
   // Separate
   std::vector<competition::Ball> newGreens;
   std::vector<competition::Ball> newReds;
@@ -143,12 +146,15 @@ void BallPublisher::visibleBallsCallback (const competition::BallsMessage& seenB
   
   checkNewBalls(greenBalls_, newGreens);
   checkNewBalls(redBalls_, newReds);
+  
+  ROS_INFO("Balls on green list: %d", greenBalls_.size());
+  ROS_INFO("Balls on red list: %d", redBalls_.size());
 }
 
 
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "explore");
+  ros::init(argc, argv, "ballPublisher");
   BallPublisher ballPublisher;
   ballPublisher.init();
   
