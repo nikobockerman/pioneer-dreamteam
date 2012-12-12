@@ -145,8 +145,8 @@ bool ExploreStateMachine::findTargetPoint (const nav_msgs::GetMap& mapServiceMsg
         {
           tempGoal.target_pose = plan.response.plan.poses.back();
           ROS_INFO("Coordinates of the last pose in the plan: x(%f), y(%f)", tempGoal.target_pose.pose.position.x, tempGoal.target_pose.pose.position.y);
+          found = true;
         }
-        found = true;
       }
     }
     if (not found)
