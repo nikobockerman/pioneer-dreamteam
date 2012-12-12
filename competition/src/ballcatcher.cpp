@@ -27,9 +27,13 @@ private:
   void approachBall();
   void driveToBall();
   void driveToBase();
-  move_base_msgs::MoveBaseGoal findPointToBase();
-  move_base_msgs::MoveBaseGoal findPointToBall(bool firstFailed);
+  move_base_msgs::MoveBaseGoal findPointToBase(bool tryStraight);
+  move_base_msgs::MoveBaseGoal findPointToBall(bool tryStraight);
   competition::Ball findClosestRedBall(const geometry_msgs::Pose& currentPosition);
+  double alignRobotToBall();
+  
+  move_base_msgs::MoveBaseGoal findClosingGoal(const double& distanceToGoal, const geometry_msgs::Point& goalPoint, const bool& tryStraight);
+  bool driveToGoal(move_base_msgs::MoveBaseGoal& goal);
   
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
@@ -130,53 +134,160 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 }
 
 
+double PickupStateMachine::alignRobotToBall()
+{
+  // TODO Call centering service from camera mode. Rotate based on the angle to ball
+  // reported by the service.
+  // When aligned, return the distance to the ball reported by the service.
+  return 0.30;
+}
+
+
+
 void PickupStateMachine::driveToBall()
 {
-  // TODO Configure speed and sleep time so that the end movement is as long as desired.
+  double distanceToBall {alignRobotToBall()};
+  ROS_INFO ("Driving to ball. Distance is %f m", distanceToBall);
+  
+  // TODO Configure speed and sleep time so that the end movement is as long as distanceToBall + small threshold.
+  double speed{0.1}; // unknown format
+  double driveTime{1000}; // ms
+  
   geometry_msgs::Twist straight;
-  straight.linear.x = 0.1;
+  straight.linear.x = speed;
   rosariaCmdPub_.publish(straight);
   
   // Wait until the desired distance is travelled.
-  sleep(1000);
+  sleep(driveTime);
   
   // Stop the robot
   geometry_msgs::Twist stop;
   rosariaCmdPub_.publish(stop);
 }
 
-move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBase()
+
+move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& distanceToGoal, const geometry_msgs::Point& goalPoint, const bool& tryStraight)
+{
+  // Current position
+  geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
+ 
+  move_base_msgs::MoveBaseGoal goal;
+  
+  bool foundPoint {false};
+  bool triedStraight {tryStraight};
+  while (not foundPoint)
+  {
+    move_base_msgs::MoveBaseGoal tempGoal{};
+    tempGoal.target_pose.header.frame_id = "map";
+    tempGoal.target_pose.header.stamp = ros::Time::now();
+    
+    nav_msgs::GetPlan plan;
+    plan.request.start = currentPosition;
+    plan.request.tolerance = 0.01;
+    
+    geometry_msgs::Point goalPoint1, goalPoint2;
+    
+    double xstart = currentPosition.pose.position.x;
+    double ystart = currentPosition.pose.position.y;
+    double xgoal = goalPoint.x;
+    double ygoal = goalPoint.y;
+    
+    if (not triedStraight)
+    {
+      // Point straight from robot to goal
+      double xDiff = xgoal - xstart;
+      double yDiff = ygoal - ystart;
+      double k = yDiff / xDiff;
+      double a = 1 + k * k;
+      double b = 2 * xgoal * (1 + k);
+      double c = xgoal * xgoal - distanceToGoal * distanceToGoal + ygoal * ygoal;
+      
+      goalPoint1.x = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+      goalPoint2.x = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+      goalPoint1.y = k * goalPoint1.x;
+      goalPoint2.y = k * goalPoint2.x;
+      
+      if (competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint1) > competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
+        goalPoint1 = goalPoint2;
+    }
+    else
+    {
+      // Point with random angle around goal with given distance to goal.
+      std::uniform_int_distribution<unsigned int> randomAngle {1,360};
+      unsigned int angleDeg = randomAngle(re_);
+      double angle = angles::from_degrees(angleDeg);
+      
+      double xdiff = sqrt(distanceToGoal * distanceToGoal / (1 + tan(angle) * tan(angle))); // + or - -> two points
+      goalPoint1.x = xgoal + xdiff;
+      goalPoint2.x = xgoal - xdiff;
+      goalPoint1.y = tan(angle) * (goalPoint1.x - xgoal) + ygoal;
+      goalPoint2.y = tan(angle) * (goalPoint2.x - xgoal) + ygoal;
+    }
+    
+    unsigned int loops {2};
+    if (not triedStraight)
+    {
+      loops = 1; // Straight test gives only one point, while random gives two.
+      triedStraight = true;
+    }
+    
+    for (unsigned int loop = 0; loop < loops and not foundPoint; ++loop)
+    {
+      geometry_msgs::Point goalPoint = goalPoint1;
+      if (loop == 1)
+        goalPoint = goalPoint2;
+      
+      tempGoal.target_pose.pose.position = goalPoint;
+      double yaw = atan2(goalPoint.y - ygoal, goalPoint.x - xgoal);
+      tempGoal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+      plan.request.goal = tempGoal.target_pose;
+    
+      if (not moveSrvClient_.call(plan)) // Test if navigation can make a plan to the point
+      {      
+        ROS_ERROR("Path not found");
+      }
+      else
+      {
+        ROS_INFO("Plan received. Number of poses: %i", plan.response.plan.poses.size()); 
+        if (plan.response.plan.poses.size() > 0)
+        {
+          goal = tempGoal;
+          foundPoint = true;
+        }
+      }
+    }
+  }
+  
+  return goal;
+}
+
+
+bool PickupStateMachine::driveToGoal (move_base_msgs::MoveBaseGoal& goal)
+{
+  actionlib::SimpleClientGoalState resultState = moveClient_.sendGoalAndWait(goal);
+  ROS_INFO("Result of navigation to ball: %s", resultState.toString().c_str());
+  
+  if (resultState == actionlib::SimpleClientGoalState::SUCCEEDED)
+  {
+    ROS_INFO("Navigation finished successfully. Hooray!");
+    return true;
+  }
+  else
+  {
+    ROS_INFO("Navigation failed to reach ball.");
+    return false;
+  }
+}
+
+
+
+move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBase(bool tryStraight)
 {
   // TODO specify this distance
   const double distanceToOrigo = 0.35; // Distance to origo from the goal point i.e., distance from base_link to gripper
   
-  move_base_msgs::MoveBaseGoal goal;
-    
-  // Current position
-  geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
-  
-  // Calculate point which is distanceToOrigo meters away from origo and in the line from currentPosition to origo.
-  //x,y: sqrt(x1^2 + y1^2) = distanceToOrigo --> distanceToOrigo^2 = x1^2 + y1^2;
-  geometry_msgs::Point goalPoint, goalPoint1, goalPoint2;
-  double k = currentPosition.pose.position.y / currentPosition.pose.position.x;
-  goalPoint1.x = sqrt((distanceToOrigo * distanceToOrigo) / (1 + k * k));
-  goalPoint2.x = -goalPoint1.x;
-  goalPoint1.y = k * goalPoint1.x;
-  goalPoint2.y = k * goalPoint2.x;
-  
-  if (competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint1) < competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
-    goalPoint = goalPoint1;
-  else
-    goalPoint = goalPoint2;
-  
-  double yaw = atan2(goalPoint.y, goalPoint.x);
-  
-  goal.target_pose.header.frame_id = "map";
-  goal.target_pose.header.stamp = ros::Time::now();
-  goal.target_pose.pose.position = goalPoint;
-  goal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
-  
-  return goal;
+  geometry_msgs::Point origo;
+  return findClosingGoal(distanceToOrigo, origo, tryStraight);
 }
 
 
@@ -201,7 +312,7 @@ competition::Ball PickupStateMachine::findClosestRedBall(const geometry_msgs::Po
 
 
 
-move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall(bool firstFailed)
+move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall(bool tryStraight)
 {
   // TODO specify this distance
   const double distanceToBall = 0.40; // Distance to origo from the goal point i.e., distance from base_link to gripper
@@ -209,116 +320,25 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall(bool firstFaile
   // Current position
   geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
   
+  // Closest red ball
   competition::Ball closest = findClosestRedBall(currentPosition.pose);
  
-  move_base_msgs::MoveBaseGoal goal;
-  move_base_msgs::MoveBaseGoal tempGoal;
-  
-  bool foundPoint {false};
-  bool triedStraight {firstFailed};
-  while (not foundPoint)
-  {
-    move_base_msgs::MoveBaseGoal tempGoal{};
-    tempGoal.target_pose.header.frame_id = "map";
-    tempGoal.target_pose.header.stamp = ros::Time::now();
-    
-    nav_msgs::GetPlan plan;
-    plan.request.start = currentPosition;
-    plan.request.tolerance = 0.01;
-    
-    geometry_msgs::Point goalPoint1, goalPoint2;
-    
-    double x1 = currentPosition.pose.position.x;
-    double y1 = currentPosition.pose.position.y;
-    double x2 = closest.location.x;
-    double y2 = closest.location.y;
-    
-    if (not triedStraight)
-    {
-      // Try point straight from robot to point
-      double xDiff = x2 - x1;
-      double yDiff = y2 - y1;
-      double k = yDiff / xDiff;
-      double a = 1 + k * k;
-      double b = 2 * x2 * (1 + k);
-      double c = x2 * x2 - distanceToBall * distanceToBall + y2 * y2;
-      
-      goalPoint1.x = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-      goalPoint2.x = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-      goalPoint1.y = k * goalPoint1.x;
-      goalPoint2.y = k * goalPoint2.x;
-      
-      if (competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint1) > competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
-        goalPoint1 = goalPoint2;
-    }
-    else
-    {
-      // Point with random angle.
-      std::uniform_int_distribution<unsigned int> randomAngle {1,360};
-      unsigned int angleDeg = randomAngle(re_);
-      double angle = angles::from_degrees(angleDeg);
-      
-      double xdiff = sqrt(distanceToBall * distanceToBall / (1 + tan(angle) * tan(angle))); // + or - -> two points
-      goalPoint1.x = x2 + xdiff;
-      goalPoint2.x = x2 - xdiff;
-      goalPoint1.y = tan(angle) * (goalPoint1.x - x2) + y2;
-      goalPoint2.y = tan(angle) * (goalPoint2.x - x2) + y2;
-    }
-    
-    unsigned int loops {2};
-    if (not triedStraight)
-    {
-      loops = 1;
-      triedStraight = true;
-    }
-    
-    for (unsigned int loop = 0; loop < loops and not foundPoint; ++loop)
-    {
-      geometry_msgs::Point goalPoint = goalPoint1;
-      if (loop == 1)
-        goalPoint = goalPoint2;
-      
-      tempGoal.target_pose.pose.position = goalPoint;
-      double yaw = atan2(goalPoint.y - y2, goalPoint.x - x2);
-      tempGoal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
-      plan.request.goal = tempGoal.target_pose;
-    
-      if (not moveSrvClient_.call(plan)) // Test if navigation can make a plan to the point
-      {      
-        ROS_ERROR("Path not found");
-      }
-      else
-      {
-        // TODO check that poses.size() > 0 if required. Test that with explore.
-        goal = tempGoal;
-        foundPoint = true;
-      }
-    }
-  }
-  
-  return goal;
+  return findClosingGoal(distanceToBall, closest, tryStraight);
 }
 
 
 void PickupStateMachine::driveToBase()
 {
   bool succeeded {false};
+  bool firstFailed {false};
   while (not succeeded)
   {
-    move_base_msgs::MoveBaseGoal goal = findPointToBase();
+    move_base_msgs::MoveBaseGoal goal = findPointToBase(firstFailed);
     
-    actionlib::SimpleClientGoalState resultState = moveClient_.sendGoalAndWait(goal);
-    ROS_INFO("Result of navigation: %s", resultState.toString().c_str()); 
-    
-    if (resultState == actionlib::SimpleClientGoalState::SUCCEEDED)
-    {
-      ROS_INFO("Navigation finished successfully. Hooray!");
+    if (driveToGoal(goal))
       succeeded = true;
-    }
     else
-    {
-      ROS_INFO("Navigation failed to reach ball.");
-    }
+      firstFailed = false;
   }
 }
 
@@ -331,19 +351,10 @@ void PickupStateMachine::approachBall()
   {
     move_base_msgs::MoveBaseGoal goal = findPointToBall(firstFailed);
     
-    actionlib::SimpleClientGoalState resultState = moveClient_.sendGoalAndWait(goal);
-    ROS_INFO("Result of navigation to ball: %s", resultState.toString().c_str());
-    
-    if (resultState == actionlib::SimpleClientGoalState::SUCCEEDED)
-    {
-      ROS_INFO("Navigation finished successfully. Hooray!");
+    if (driveToGoal(goal))
       succeeded = true;
-    }
     else
-    {
-      ROS_INFO("Navigation failed to reach ball.");
-      firstFailed = true;
-    }
+      firstFailed = false;
   }
 }
 
