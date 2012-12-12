@@ -13,6 +13,7 @@
 #include <competition/Ball.h>
 #include <competition/Balls.h>
 #include <competition/removeBall.h>
+#include <competition/centerSrv.h>
 
 class PickupStateMachine : public RobotState {
 public:
@@ -25,12 +26,14 @@ private:
   
   bool driveManipulator(int command);
   void approachBall();
-  void driveToBall();
+  bool pickup();
   void driveToBase();
+  
+  void driveToBall(const double& distanceToBall);
   move_base_msgs::MoveBaseGoal findPointToBase(bool tryStraight);
   move_base_msgs::MoveBaseGoal findPointToBall(bool tryStraight);
   competition::Ball findClosestRedBall(const geometry_msgs::Pose& currentPosition);
-  double alignRobotToBall();
+  double alignRobotToBall(competition::Ball& ballToPickup);
   
   move_base_msgs::MoveBaseGoal findClosingGoal(const double& distanceToGoal, const geometry_msgs::Point& goalPoint, const bool& tryStraight);
   bool driveToGoal(move_base_msgs::MoveBaseGoal& goal);
@@ -43,6 +46,7 @@ private:
   ros::ServiceClient redBallsClient_;
   ros::ServiceClient moveSrvClient_;
   ros::ServiceClient removeRedBallClient_;
+  ros::ServiceClient alignRobotClient_;
   actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
   
   std::default_random_engine re_;
@@ -64,6 +68,7 @@ void PickupStateMachine::init()
   redBallsClient_ = nh_.serviceClient<competition::Balls>("red_balls");
   moveSrvClient_ = nh_.serviceClient<nav_msgs::GetPlan>("move_base/make_plan");
   removeRedBallClient_ = nh_.serviceClient<competition::removeBall>("remove_red_ball");
+  alignRobotClient_ = nh_.serviceClient<competition::centerSrv>("alignment");
 }
 
 
@@ -87,26 +92,13 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
         requestStateChange(robotstate::DriveToBall);
       }
       break;
-    case robotstate::DriveToBall:
-      if (oldState != robotstate::DriveToBall)
-      {
-        // TODO Rotate until the camera sees the ball in the middle. Then use the received distance to drive straight ahead to the ball.
-        driveToBall();
-        requestStateChange(robotstate::Pickup);
-      }
-      break;
     case robotstate::Pickup:
       if (oldState != robotstate::Pickup)
       {
-        bool catched = driveManipulator(1);
-				if (catched) 
-        {
-          //TODO remove the dropped ball from the list
+        if (pickup())
           requestStateChange(robotstate::DriveToBase);
-        }
-				else {
-					//TODO Under consideration
-				}
+        else
+          requestStateChange(robotstate::Explore);
       }
       break;
     case robotstate::DriveToBase:
@@ -134,31 +126,89 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 }
 
 
-double PickupStateMachine::alignRobotToBall()
+bool PickupStateMachine::pickup()
 {
-  // TODO Call centering service from camera mode. Rotate based on the angle to ball
-  // reported by the service.
-  // When aligned, return the distance to the ball reported by the service.
-  return 0.30;
+  // TODO Rotate until the camera sees the ball in the middle. Then use the received distance to drive straight ahead to the ball.
+  // Also save the ball specified by the camera to be removed after successful pickup.
+  competition::Ball ballToPickup;
+  double distanceToBall = alignRobotToBall(ballToPickup);
+  
+  driveToBall(distanceToBall);
+  
+  // Try to pick up the ball which should now be under the manipulator.
+  bool catched{driveManipulator(1)};
+  if (catched)
+  {
+    competition::removeBall msg;
+    msg.request.ballToRemove = ballToPickup;
+    removeRedBallClient_.call(msg);
+    ROS_INFO("Removed ball from ballPublisher: %s", msg.response.success ? "True" : "False");
+  }
+  return catched;
+}
+
+
+double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
+{
+  // TODO Calibrate these variables
+  const double rotateSpeed{0.1};
+  const double rotateTimeScale{0.1};
+  const double angleLimit{0.001};
+  
+  double distance{0.0};
+  bool aligned{false};
+  
+  while (not aligned)
+  {
+    competition::centerSrv msg;
+    if (not alignRobotClient_.call(msg))
+    {
+      ROS_ERROR("Service call failed. Not able to handle this case.");
+      return -1;
+    }
+    else
+    {
+      float angle = msg.response.angle;
+      if (abs(angle) < angleLimit)
+      {
+        // Reached required angle.
+        distance = msg.response.distance;
+        ballToPickup = msg.response.ball;
+        aligned = true;
+      }
+      else
+      {
+        geometry_msgs::Twist turnMsg;
+        turnMsg.angular.z = rotateSpeed;
+        rosariaCmdPub_.publish(turnMsg);
+        
+        // Sleep time required to rotate to the desired angle.
+        sleep(rotateTimeScale * angle);
+        
+        geometry_msgs::Twist stopMsg;
+        rosariaCmdPub_.publish(stopMsg);
+      }
+    }
+  }
+  return distance;
 }
 
 
 
-void PickupStateMachine::driveToBall()
+void PickupStateMachine::driveToBall(const double& distanceToBall)
 {
-  double distanceToBall {alignRobotToBall()};
   ROS_INFO ("Driving to ball. Distance is %f m", distanceToBall);
   
-  // TODO Configure speed and sleep time so that the end movement is as long as distanceToBall + small threshold.
-  double speed{0.1}; // unknown format
-  double driveTime{1000}; // ms
+  // TODO Configure speed and sleep time so that the end movement is as long as distanceToBall + some small threshold.
+  double speed{0.1};
+  double driveTimeScale{100};
   
   geometry_msgs::Twist straight;
   straight.linear.x = speed;
   rosariaCmdPub_.publish(straight);
   
   // Wait until the desired distance is travelled.
-  sleep(driveTime);
+  sleep(driveTimeScale * distanceToBall);
   
   // Stop the robot
   geometry_msgs::Twist stop;
@@ -323,7 +373,7 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall(bool tryStraigh
   // Closest red ball
   competition::Ball closest = findClosestRedBall(currentPosition.pose);
  
-  return findClosingGoal(distanceToBall, closest, tryStraight);
+  return findClosingGoal(distanceToBall, closest.location, tryStraight);
 }
 
 
