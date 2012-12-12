@@ -25,6 +25,7 @@ class ImageHandler
   ros::ServiceServer centerSrv_;
   IplImage latestImg;
   int counter_;
+  tf::TransformListener listener;
 	
 
 public:
@@ -42,11 +43,12 @@ public:
 
 	void imageCb(const sensor_msgs::ImageConstPtr& msg)
 	{
-	  if (counter_ < 9) {
+	  /*if (counter_ < 9) {
 	    counter_++;
 	    return;
 	  }
-		counter_ = 0;
+	  
+		counter_ = 0;*/
 		//Get image from camera    		
 		cv_bridge::CvImagePtr cv_ptr;
     		try
@@ -62,7 +64,9 @@ public:
     		//cv::imshow("Camera", cv_ptr->image);
     		
 		//Get transform
-		tf::StampedTransform transform = getTransform();
+		tf::StampedTransform transform;
+		if (not getTransform(transform, msg->header.stamp))
+		  return;
 		
     		IplImage img = cv_ptr->image;
 		//cv::Mat img = cv_ptr->image;
@@ -133,21 +137,23 @@ public:
 		std::vector<cv::KeyPoint> keypoints;
 		blob_detector->detect(imageBlob, keypoints);
 
+		/*
 		//Draw keypoints for testing purposes
 		cv::drawKeypoints(imageBlob, keypoints, imageBlob, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	
 		if(color==0) {
-			cv::imshow("Red", imageBlob);
+			//cv::imshow("Red", imageBlob);
 			for(int i = 0; i < keypoints.size(); i++) {
 				std::cout << "Red ball " << i << ": ( " << keypoints[i].pt.x << " , " << keypoints[i].pt.y << " )" << std::endl;
 			}
 		}
 		else if(color==1) {
-			cv::imshow("Green", imageBlob);
+			//cv::imshow("Green", imageBlob);
 			for(int i = 0; i < keypoints.size(); i++) {
 				std::cout << "Green ball " << i << ": ( " << keypoints[i].pt.x << " , " << keypoints[i].pt.y << " )" << std::endl;
 			}
 		}
+		*/
 		
 		cvReleaseImage(&imageHSV);
 		cvReleaseImage(&planeH);
@@ -157,20 +163,17 @@ public:
 		return keypoints;
 	}
 
-	tf::StampedTransform getTransform()
-	{	
-		//Get the position of the robot from the /map -> /base_link transform
-		tf::TransformListener listener;
-	
-		tf::StampedTransform transform;
+	bool getTransform(tf::StampedTransform &transform, ros::Time stamp)
+	{
 		try {
-			listener.lookupTransform("/map", "/base_link", ros::Time(0), transform);
+			listener.lookupTransform("/map", "/base_link", stamp, transform);
 		}
 		catch (tf::TransformException ex) {
 			ROS_ERROR("%s", ex.what());
+			return false;
 		}
 		
-		return transform;
+		return true;
 	}
 	
 	
@@ -192,28 +195,30 @@ public:
     Balls.header.frame_id = "map";
     Balls.header.stamp = ros::Time::now();
     
+    std::cout << std::endl;
+    
     for(int i = 0; i < keypointsR.size(); i++)
     {
       //Calculate object vertical angle from centre of camera
       float ya = imgYmax / 2 - (imgYmax - keypointsR[i].pt.y);
       float yb = imgYmax / 2;
       float alpha = ya / yb * camYmax / 2;
-      std::cout << "yAlpha: " << alpha << std::endl;
+      //std::cout << "yAlpha: " << alpha << std::endl;
       
       //Calculate angle between object and robot vertical axis, and calculate distance on the ground
       float beta = 90.0 - alpha - camAng;
       float yDist = tan(beta*PI/180) * camDgrd;
-      std::cout << "yDist: " << yDist << std::endl;
+      //std::cout << "yDist: " << yDist << std::endl;
 
       //Calculate object horizontal angle from centre of camera
       float xa = imgXmax / 2 - keypointsR[i].pt.x;
       float xb = imgXmax / 2;
       float gamma = xa / xb * camXmax / 2;
-      std::cout << "xGamma: " << gamma << std::endl;
+      //std::cout << "xGamma: " << gamma << std::endl;
 
       //Calculate x-axis distance from centre of robot
       float xDist = tan(gamma*PI/180) * yDist;
-      std::cout << "xDist: " << xDist << std::endl;
+      //std::cout << "xDist: " << xDist << std::endl;
       //Calculate distance and angle in comparison to robot centre of axis
       yDist = yDist + camDaxl;
       float bDist = sqrt(xDist*xDist + yDist*yDist);
@@ -227,14 +232,14 @@ public:
       ball.location.z = 0;
       Balls.balls.push_back(ball);
       
-      std::cout << "Red ball at " << bDist << " at angle " << bAng*180/PI << std::endl;
+      std::cout << "Red ball at " << bDist << " at angle " << bAng*180/PI << "at coordinate: (" << ball.location.x << ", " << ball.location.y << ")" <<std::endl;
       
     }
 
     for(int i = 0; i < keypointsG.size(); i++)
     {
       //Calculate object vertical angle from centre of camera
-      float ya = imgYmax / 2 - keypointsG[i].pt.y;
+      float ya = imgYmax / 2 - (imgYmax - keypointsG[i].pt.y);
       float yb = imgYmax / 2;
       float alpha = ya / yb * camYmax / 2;
 	
@@ -244,7 +249,7 @@ public:
 
       //Calculate object horizontal angle from centre of camera
       float xa = imgXmax / 2 - keypointsG[i].pt.x;
-      float xb = imgXmax / 2;
+      float xb = imgXmax / 1;
       float gamma = xa / xb * camXmax / 2;
 
       //Calculate x-axis distance from centre of robot
@@ -262,17 +267,11 @@ public:
       ball.location.z = 0;
       Balls.balls.push_back(ball);
       
-      std::cout << "Green ball at " << bDist << " at angle " << bAng*180/PI << std::endl;
+      std::cout << "Green ball at " << bDist << " at angle " << bAng*180/PI << "at coordinate: (" << ball.location.x << ", " << ball.location.y << ")" <<std::endl;
     }
     
-    //Testing
-    for(int i = 0; i < Balls.balls.size(); i++)
-    {
-      std::cout << Balls.balls[i].color << " " << Balls.balls[i].location.x << " " << Balls.balls[i].location.y << std::endl;
-    }
     
     pub_.publish(Balls);
-    //cv::waitKey(0);
   }
   
   //Check location of closest red ball
@@ -293,9 +292,9 @@ public:
     float camDgrd = 0.27;
     float camDaxl = 0.13;
     
-    tf::StampedTransform transform = getTransform();
-    
-    
+    tf::StampedTransform transform;
+    if(not getTransform(transform, ros::Time(0)))
+      return false;
     
     for(int i = 0; i < Rballs.size(); i++)
     {
@@ -303,22 +302,22 @@ public:
       float ya = imgYmax / 2 - Rballs[i].pt.y;
       float yb = imgYmax / 2;
       float alpha = ya / yb * camYmax / 2;
-      std::cout << "yAlpha: " << alpha << std::endl;
+      //std::cout << "yAlpha: " << alpha << std::endl;
       
       //Calculate angle between object and robot vertical axis, and calculate distance on the ground
       float beta = 90.0 - alpha - camAng;
       float yDist = tan(beta*PI/180) * camDgrd;
-      std::cout << "yDist: " << yDist << std::endl;
+      //std::cout << "yDist: " << yDist << std::endl;
 
       //Calculate object horizontal angle from centre of camera
       float xa = imgXmax / 2 - Rballs[i].pt.x;
       float xb = imgXmax / 2;
       float gamma = xa / xb * camXmax / 2;
-      std::cout << "xGamma: " << gamma << std::endl;
+      //std::cout << "xGamma: " << gamma << std::endl;
 
       //Calculate x-axis distance from centre of robot
       float xDist = tan(gamma*PI/180) * yDist;
-      std::cout << "xDist: " << xDist << std::endl;
+      //std::cout << "xDist: " << xDist << std::endl;
       //Calculate distance and angle in comparison to robot centre of axis
       yDist = yDist + camDaxl;
       float bDist = sqrt(xDist*xDist + yDist*yDist);
