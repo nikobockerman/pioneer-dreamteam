@@ -34,7 +34,7 @@ namespace competition
   {
     double xDiff = point2.x - point1.x;
     double yDiff = point2.y - point1.y;
-    return sqrt((yDiff*yDiff) / (xDiff*xDiff));
+    return sqrt((yDiff*yDiff) + (xDiff*xDiff));
   }
   
   geometry_msgs::PoseStamped currentPosition(tf::TransformListener& listener)
