@@ -227,14 +227,14 @@ public:
       ball.location.z = 0;
       Balls.balls.push_back(ball);
       
-      std::cout << "Red ball at " << bDist << " at angle " << bAng*180/PI << std::endl;
+      std::cout << "Red ball at " << bDist << " at angle " << bAng*180/PI << ", robot angle is " << tf::getYaw(transform.getRotation()) << std::endl;
       
     }
 
     for(int i = 0; i < keypointsG.size(); i++)
     {
       //Calculate object vertical angle from centre of camera
-      float ya = imgYmax / 2 - keypointsG[i].pt.y;
+      float ya = imgYmax / 2 - (imgYmax - keypointsG[i].pt.y);
       float yb = imgYmax / 2;
       float alpha = ya / yb * camYmax / 2;
 	
@@ -244,7 +244,7 @@ public:
 
       //Calculate object horizontal angle from centre of camera
       float xa = imgXmax / 2 - keypointsG[i].pt.x;
-      float xb = imgXmax / 2;
+      float xb = imgXmax / 1;
       float gamma = xa / xb * camXmax / 2;
 
       //Calculate x-axis distance from centre of robot
