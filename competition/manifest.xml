@@ -11,6 +11,11 @@
   <depend package="actionlib" />
   <depend package="move_base_msgs" />
   <depend package="occupancy_grid_utils" />
+  <depend package="opencv2" />
+  <depend package="sensor_msgs" />
+  <depend package="cv_bridge" />
+  <depend package="image_transport" />
+  <depend package="std_msgs" />  
   <depend package="pcl_ros" />
   <depend package="pcl" />
   <depend package="angles" />
