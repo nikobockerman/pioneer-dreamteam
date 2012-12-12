@@ -86,7 +86,7 @@ bool BallPublisher::redBallsService (competition::Balls::Request& req, competiti
 
 void BallPublisher::publishTimerCallback (const ros::TimerEvent& event)
 {
-  ROS_INFO("Publishing red and green balls");
+  //ROS_INFO("Publishing red and green balls");
   competition::BallsMessage redMsg;
   redMsg.header.frame_id = "/map";
   redMsg.header.stamp = ros::Time::now();
