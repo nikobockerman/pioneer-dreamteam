@@ -163,8 +163,7 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
     competition::centerSrv msg;
     if (not alignRobotClient_.call(msg))
     {
-      ROS_ERROR("Service call failed. Not able to handle this case.");
-      return -1;
+      ROS_ERROR("Service call failed. Trying again.");
     }
     else
     {
