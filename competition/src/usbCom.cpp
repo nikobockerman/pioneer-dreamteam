@@ -45,19 +45,6 @@ bool control(competition::usbCom::Request &req,
           else if (req.command == 0) {
                   wr = write(fd, "0", 1);
           }
-          if (wr > 0) {
-                  bool run = true;
-                  bool result = false;
-                  while (run) {
-                          rd = read(fd, &buff, 5);
-                          std::string response(buff, 5);
-                          if (response.compare("Grab1") == 0) result = true;
-                          if (response.compare("Mode0") == 0) run = false;
-                  }
-                  std::string info = result ? "Grabbing was succusfull" : "Grabbing failed";
-                  ROS_INFO("%s", info.c_str());
-                  res.state = result ?  "True" : "False";
-          }
         }
         close(fd);
         return true;
