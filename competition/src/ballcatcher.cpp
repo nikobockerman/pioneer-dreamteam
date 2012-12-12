@@ -12,6 +12,7 @@
 #include "competition/usbCom.h"
 #include <competition/Ball.h>
 #include <competition/Balls.h>
+#include <competition/removeBall.h>
 
 class PickupStateMachine : public RobotState {
 public:
@@ -37,6 +38,7 @@ private:
   
   ros::ServiceClient redBallsClient_;
   ros::ServiceClient moveSrvClient_;
+  ros::ServiceClient removeRedBallClient_;
   actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> moveClient_;
   
   std::default_random_engine re_;
@@ -57,6 +59,7 @@ void PickupStateMachine::init()
   rosariaCmdPub_ = nh_.advertise<geometry_msgs::Twist>("/RosAria/cmd_vel", 1, false);
   redBallsClient_ = nh_.serviceClient<competition::Balls>("red_balls");
   moveSrvClient_ = nh_.serviceClient<nav_msgs::GetPlan>("move_base/make_plan");
+  removeRedBallClient_ = nh_.serviceClient<competition::removeBall>("remove_red_ball");
 }
 
 
@@ -77,18 +80,13 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       if (oldState != robotstate::Approach)
       {
         approachBall();
-        requestStateChange(robotstate::Centering);
-      }
-      break;
-    case robotstate::Centering:
-      if (oldState != robotstate::Centering)
-      {
-        // TODO Rotate until the camera sees the ball in the middle.
+        requestStateChange(robotstate::DriveToBall);
       }
       break;
     case robotstate::DriveToBall:
       if (oldState != robotstate::DriveToBall)
       {
+        // TODO Rotate until the camera sees the ball in the middle. Then use the received distance to drive straight ahead to the ball.
         driveToBall();
         requestStateChange(robotstate::Pickup);
       }
@@ -97,7 +95,11 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       if (oldState != robotstate::Pickup)
       {
         bool catched = driveManipulator(1);
-				if (catched) requestStateChange(robotstate::DriveToBase);
+				if (catched) 
+        {
+          //TODO remove the dropped ball from the list
+          requestStateChange(robotstate::DriveToBase);
+        }
 				else {
 					//TODO Under consideration
 				}
@@ -115,7 +117,6 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       {
         bool released = driveManipulator(0);
 				if (released) {
-					//TODO remove the dropped ball from the list
 					requestStateChange(robotstate::Approach);
 				}
 				else {

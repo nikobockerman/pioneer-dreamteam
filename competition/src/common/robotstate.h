@@ -14,8 +14,8 @@ namespace robotstate
     Startup = 1,
     Explore = 2,
     Approach = 3,
-    Centering = 4,
-    DriveToBall = 5,
+    Centering = 4, // Not used, combined with DriveToBall
+    DriveToBall = 5, 
     Pickup = 6,
     DriveToBase = 7,
     Drop = 8, // Also reverse little bit after releasing the ball
