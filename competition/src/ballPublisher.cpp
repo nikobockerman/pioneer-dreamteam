@@ -11,7 +11,7 @@
 const uint8_t RED {0};
 const uint8_t GREEN {1};
 
-const double MIN_DIST_BETWEEN_BALLS {150}; //TODO Check in robo room.
+const double MIN_DIST_BETWEEN_BALLS {0.15}; //TODO Check in robo room.
 const double PUBLISH_DELAY {0.1};
 
 class BallPublisher {
@@ -45,7 +45,7 @@ BallPublisher::BallPublisher()
 void BallPublisher::init()
 {
   redBallsPub_ = nh_.advertise<competition::BallsMessage> ("red_balls", 1, true);
-  pointCloudPub_ = nh_.advertise<pcl::PointCloud<pcl::PointXY>>("green_balls", 1, false);
+  pointCloudPub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZ>>("green_balls", 1, false);
   
   ballsSub_ = nh_.subscribe("visible_balls", 10, &BallPublisher::visibleBallsCallback, this);
   ballRemoveSrv_ = nh_.advertiseService("remove_red_ball", &BallPublisher::ballRemoveService, this);

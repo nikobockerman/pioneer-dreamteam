@@ -113,7 +113,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       {
         bool released = driveManipulator(0);
 				if (released) {
-					requestStateChange(robotstate::Approach);
+					requestStateChange(robotstate::Explore);
 				}
 				else {
 					//TODO Under consideration
@@ -128,7 +128,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 
 bool PickupStateMachine::pickup()
 {
-  // TODO Rotate until the camera sees the ball in the middle. Then use the received distance to drive straight ahead to the ball.
+  // Rotate until the camera sees the ball in the middle. Then use the received distance to drive straight ahead to the ball.
   // Also save the ball specified by the camera to be removed after successful pickup.
   competition::Ball ballToPickup;
   double distanceToBall = alignRobotToBall(ballToPickup);
@@ -333,8 +333,7 @@ bool PickupStateMachine::driveToGoal (move_base_msgs::MoveBaseGoal& goal)
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBase(bool tryStraight)
 {
-  // TODO specify this distance
-  const double distanceToOrigo = 0.35; // Distance to origo from the goal point i.e., distance from base_link to gripper
+  const double distanceToOrigo = 0.31; // Distance to origo from the goal point i.e., distance from base_link to gripper
   
   geometry_msgs::Point origo;
   return findClosingGoal(distanceToOrigo, origo, tryStraight);
@@ -364,8 +363,7 @@ competition::Ball PickupStateMachine::findClosestRedBall(const geometry_msgs::Po
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall(bool tryStraight)
 {
-  // TODO specify this distance
-  const double distanceToBall = 0.40; // Distance to origo from the goal point i.e., distance from base_link to gripper
+  const double distanceToBall = 0.50; // Distance to ball before aligning
  
   // Current position
   geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
