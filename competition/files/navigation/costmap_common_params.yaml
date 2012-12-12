@@ -20,14 +20,19 @@ footprint: [[0.10, -0.191], [-0.17, -0.191], [-0.275, -0.11], [-0.275, 0.11], [-
 
 # Sensor management parameters
 #Add pointcloud when published
-observation_sources: laser_scan_sensor
+observation_sources: laser_scan_sensor point_cloud_topic
 laser_scan_sensor:
   topic: scan
   expected_update_rate: 0.1
   data_type: LaserScan
   #clearing: false
   #marking: true
-  
+
+point_cloud_topic:
+  topic: green_balls
+  expected_update_rate: 0.2
+  data_type: PointCloud2
+
 # Map management parameters
 #static_map: true
 #rolling_window: false
