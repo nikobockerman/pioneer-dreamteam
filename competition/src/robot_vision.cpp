@@ -280,9 +280,9 @@ public:
     float camXmax = 56.0;
     float imgYmax = 480.0;
     float imgXmax = 640.0;
-    float camAng = 45.0;
-    float camDgrd = 0.3;
-    float camDaxl = 0.1;
+    float camAng = 25.0;
+    float camDgrd = 0.27;
+    float camDaxl = 0.13;
     
     tf::StampedTransform transform = getTransform();
     
@@ -346,9 +346,6 @@ public:
     }    
   }
 };
-
-
-
 
 int main(int argc, char **argv)
 {
