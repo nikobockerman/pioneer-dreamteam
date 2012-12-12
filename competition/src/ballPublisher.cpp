@@ -11,7 +11,7 @@
 const uint8_t RED {0};
 const uint8_t GREEN {1};
 
-const double MIN_DIST_BETWEEN_BALLS {150}; //TODO Check in robo room.
+const double MIN_DIST_BETWEEN_BALLS {0.15}; //TODO Check in robo room.
 const double PUBLISH_DELAY {0.1};
 
 class BallPublisher {
