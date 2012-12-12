@@ -37,6 +37,7 @@ private:
   
   move_base_msgs::MoveBaseGoal findClosingGoal(const double& distanceToGoal, const geometry_msgs::Point& goalPoint, const bool& tryStraight);
   bool driveToGoal(move_base_msgs::MoveBaseGoal& goal);
+  void reverse();
   
   ros::NodeHandle nh_;
   ros::Publisher statePub_;
@@ -113,6 +114,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
       {
         bool released = driveManipulator(0);
 				if (released) {
+          reverse();
 					requestStateChange(robotstate::Explore);
 				}
 				else {
@@ -153,7 +155,7 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
   // TODO Calibrate these variables
   const double rotateSpeed{0.1};
   const double rotateTimeScale{0.1};
-  const double angleLimit{0.001};
+  const float angleLimit = 0.001;
   
   double distance{0.0};
   bool aligned{false};
@@ -169,6 +171,7 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
     {
       float angle = msg.response.angle;
       ROS_INFO("Received angle: %f", angle);
+      ROS_INFO("Comparison: %f", abs(angle));
       if (abs(angle) < angleLimit)
       {
         // Reached required angle.
@@ -181,10 +184,10 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
       {
         ROS_INFO("Turning robot");
         geometry_msgs::Twist turnMsg;
-        turnMsg.angular.z = rotateSpeed;
+        turnMsg.angular.z = (angle < 0 ? -rotateSpeed : rotateSpeed);
         rosariaCmdPub_.publish(turnMsg);
         
-        ROS_INFO("Sleeping for %f", rotateTimeScale * angle);
+        ROS_INFO("Sleeping for %f", rotateTimeScale);
         // Sleep time required to rotate to the desired angle.
         sleep(rotateTimeScale * angle);
         
@@ -206,7 +209,7 @@ void PickupStateMachine::driveToBall(const double& distanceToBall)
   
   // TODO Configure speed and sleep time so that the end movement is as long as distanceToBall + some small threshold.
   double speed{0.1};
-  double driveTimeScale{100};
+  double driveTimeScale = 0.1;
   
   ROS_INFO("Sending straing speed");
   geometry_msgs::Twist straight;
@@ -225,8 +228,31 @@ void PickupStateMachine::driveToBall(const double& distanceToBall)
 }
 
 
+void PickupStateMachine::reverse()
+{
+  ROS_INFO("Reversing");
+  double speed{-0.1};
+  unsigned int seconds{3};
+  
+  geometry_msgs::Twist straight;
+  straight.linear.x = speed;
+  rosariaCmdPub_.publish(straight);
+  
+  ROS_INFO("Sleeping for %f", driveTimeScale * distanceToBall);
+  // Wait until the desired distance is travelled.
+  sleep(seconds);
+  
+  // Stop the robot
+  ROS_INFO("Stopping robot");
+  geometry_msgs::Twist stop;
+  rosariaCmdPub_.publish(stop);
+  ROS_INFO("Robot stopped");
+}
+
+
 move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& distanceToGoal, const geometry_msgs::Point& goalPoint, const bool& tryStraight)
 {
+  
   // Current position
   geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
  
@@ -424,9 +450,10 @@ bool PickupStateMachine::driveManipulator(int command) {
 	if (command == 1) ROS_INFO("Requesting service to grab the ball...");
 	else if (command == 0) ROS_INFO("Requesting service to release the ball...");
 	if(client.call(service)) {
-		std::string a = service.response.state;
-		ROS_INFO("Response was: %s", a.c_str());
-		return (a.compare("True") == 0/*|| a.compare("Release") == 0*/) ? true : false; 
+		//std::string a = service.response.state;
+		//ROS_INFO("Response was: %s", a.c_str());
+		//return (a.compare("True") == 0/*|| a.compare("Release") == 0*/) ? true : false; 
+		return true;
 	}
 	return false;
 }
