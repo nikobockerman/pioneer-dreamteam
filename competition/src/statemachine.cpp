@@ -81,8 +81,13 @@ void MainStateMachine::startUp (const ros::TimerEvent& event)
 void MainStateMachine::stateChangeRequestCallback(const competition::StateMessage& requestedNewState)
 {
   robotstate::State newState = robotstate::uintToState(requestedNewState.new_state);
-  if (newState == robotstate::Explore or newState == robotstate::Shutdown or newState == robotstate::Undefined or newState == robotstate::Startup)
+  if (newState == robotstate::Shutdown or newState == robotstate::Undefined or newState == robotstate::Startup)
     return;
+  if (newState == robotstate::Explore)
+  {
+    if (redBallsFound_)
+      currentState(robotstate::Approach);
+  }
   currentState(newState);
 }
 
