@@ -13,6 +13,7 @@
   <depend package="occupancy_grid_utils" />
   <depend package="pcl_ros" />
   <depend package="pcl" />
+  <depend package="angles" />
 </package>
 
 
