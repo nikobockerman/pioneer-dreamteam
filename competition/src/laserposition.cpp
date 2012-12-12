@@ -28,7 +28,7 @@ void TransformSender::sendTransform (const ros::TimerEvent& event)
   broadcaster_.sendTransform(
     tf::StampedTransform(
       tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(-0.12, 0.0, 0.55)),
-                         ros::Time::now(), "base_link", "laser"));
+                         ros::Time::now(), "/base_link", "/laser"));
 }
 
 
