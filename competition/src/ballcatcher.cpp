@@ -134,7 +134,9 @@ bool PickupStateMachine::pickup()
   // Also save the ball specified by the camera to be removed after successful pickup.
   competition::Ball ballToPickup;
   double distanceToBall = alignRobotToBall(ballToPickup);
-  
+  if (distanceToBall < 0)
+    return false; 
+ 
   driveToBall(distanceToBall);
   
   // Try to pick up the ball which should now be under the manipulator.
@@ -153,15 +155,17 @@ bool PickupStateMachine::pickup()
 double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
 {
   // TODO Calibrate these variables
-  const double rotateSpeed{0.1};
-  const double rotateTimeScale{0.1};
-  const float angleLimit = 0.001;
+  const double rotateSpeed{2.0};
+  const double minSpeed{0.01};
+  const unsigned int rotateTimeScale{2};
+  float angleLimit = 0.004;
   
   double distance{0.0};
   bool aligned{false};
   
   while (not aligned)
   {
+    sleep(3);
     competition::centerSrv msg;
     if (not alignRobotClient_.call(msg))
     {
@@ -169,10 +173,16 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
     }
     else
     {
+      ROS_INFO("Received distance: %f", msg.response.distance);
+      if (msg.response.distance < 0)
+      {
+        ROS_INFO("Distance was less than 0. Returning -1");
+        return -1;
+      }
       float angle = msg.response.angle;
       ROS_INFO("Received angle: %f", angle);
-      ROS_INFO("Comparison: %f", abs(angle));
-      if (abs(angle) < angleLimit)
+      ROS_INFO("Comparison: %f", fabs(angle));
+      if (fabs(angle) < angleLimit)
       {
         // Reached required angle.
         ROS_INFO("Robot aligned");
@@ -184,12 +194,15 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
       {
         ROS_INFO("Turning robot");
         geometry_msgs::Twist turnMsg;
-        turnMsg.angular.z = (angle < 0 ? -rotateSpeed : rotateSpeed);
+        double speed = angle*rotateSpeed;
+        if (speed < minSpeed)
+          speed = minSpeed;
+        turnMsg.angular.z = speed; //angle*rotateSpeed; // (angle < 0 ? -rotateSpeed : rotateSpeed);
         rosariaCmdPub_.publish(turnMsg);
         
         ROS_INFO("Sleeping for %f", rotateTimeScale);
         // Sleep time required to rotate to the desired angle.
-        sleep(rotateTimeScale * angle);
+        sleep(rotateTimeScale);
         
         ROS_INFO("Stopping robot");
         geometry_msgs::Twist stopMsg;
@@ -209,7 +222,7 @@ void PickupStateMachine::driveToBall(const double& distanceToBall)
   
   // TODO Configure speed and sleep time so that the end movement is as long as distanceToBall + some small threshold.
   double speed{0.1};
-  double driveTimeScale = 0.1;
+  double driveTimeScale{6.25};
   
   ROS_INFO("Sending straing speed");
   geometry_msgs::Twist straight;
@@ -218,7 +231,7 @@ void PickupStateMachine::driveToBall(const double& distanceToBall)
   
   ROS_INFO("Sleeping for %f", driveTimeScale * distanceToBall);
   // Wait until the desired distance is travelled.
-  sleep(driveTimeScale * distanceToBall);
+  usleep(driveTimeScale * distanceToBall * 1000000);
   
   // Stop the robot
   ROS_INFO("Stopping robot");
@@ -252,10 +265,14 @@ void PickupStateMachine::reverse()
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& distanceToGoal, const geometry_msgs::Point& goalPoint, const bool& tryStraight)
 {
-  
+  ROS_INFO("Trying to find point close to goal");
+  ROS_INFO("Goal coordinates: (%f, %f)", goalPoint.x, goalPoint.y);
+  ROS_INFO("Requested distance to goal: %f", distanceToGoal);
+
   // Current position
   geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
- 
+  ROS_INFO("Current position: (%f, %f)", currentPosition.pose.position.x, currentPosition.pose.position.y); 
+
   move_base_msgs::MoveBaseGoal goal;
   
   bool foundPoint {false};
@@ -279,6 +296,7 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& 
     
     if (not triedStraight)
     {
+      ROS_INFO("Trying to find goal on straight line");
       // Point straight from robot to goal
       double xDiff = xgoal - xstart;
       double yDiff = ygoal - ystart;
@@ -294,12 +312,15 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& 
       
       if (competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint1) > competition::distanceBetweenPoints(currentPosition.pose.position, goalPoint2))
         goalPoint1 = goalPoint2;
+      ROS_INFO("Straight line goal coordinates: (%f, %f)", goalPoint1.x, goalPoint1.y);
     }
     else
     {
+      ROS_INFO("Trying to find point with random angle");
       // Point with random angle around goal with given distance to goal.
       std::uniform_int_distribution<unsigned int> randomAngle {1,360};
       unsigned int angleDeg = randomAngle(re_);
+      ROS_INFO("Random angle %u degrees", angleDeg);
       double angle = angles::from_degrees(angleDeg);
       
       double xdiff = sqrt(distanceToGoal * distanceToGoal / (1 + tan(angle) * tan(angle))); // + or - -> two points
@@ -307,6 +328,8 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& 
       goalPoint2.x = xgoal - xdiff;
       goalPoint1.y = tan(angle) * (goalPoint1.x - xgoal) + ygoal;
       goalPoint2.y = tan(angle) * (goalPoint2.x - xgoal) + ygoal;
+      ROS_INFO("Random point 1: (%f, %f)", goalPoint1.x, goalPoint1.y);
+      ROS_INFO("Random point 2: (%f, %f)", goalPoint2.x, goalPoint2.y);
     }
     
     unsigned int loops {2};
@@ -323,7 +346,7 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& 
         goalPoint = goalPoint2;
       
       tempGoal.target_pose.pose.position = goalPoint;
-      double yaw = atan2(goalPoint.y - ygoal, goalPoint.x - xgoal);
+      double yaw = atan2(ygoal - goalPoint.y, xgoal - goalPoint.x);
       tempGoal.target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
       plan.request.goal = tempGoal.target_pose;
     
@@ -343,6 +366,7 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findClosingGoal (const double& 
     }
   }
   
+  ROS_INFO("Returning goal point: (%f, %f)", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
   return goal;
 }
 
@@ -377,6 +401,7 @@ move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBase(bool tryStraigh
 
 competition::Ball PickupStateMachine::findClosestRedBall(const geometry_msgs::Pose& currentPosition)
 {
+  ROS_INFO("Finding closest red ball");
   competition::Balls redBalls;
   redBallsClient_.call(redBalls);
   
@@ -391,6 +416,7 @@ competition::Ball PickupStateMachine::findClosestRedBall(const geometry_msgs::Po
       closest = ball;
     }
   }
+  ROS_INFO("Closest ball (%f, %f) with distance %f", closest.location.x, closest.location.y, shortest);
   return closest;
 }
 
