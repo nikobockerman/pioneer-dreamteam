@@ -24,6 +24,7 @@ class ImageHandler
   image_transport::Subscriber image_sub_;
   ros::ServiceServer centerSrv_;
   IplImage latestImg;
+  int counter_;
 	
 
 public:
@@ -41,6 +42,11 @@ public:
 
 	void imageCb(const sensor_msgs::ImageConstPtr& msg)
 	{
+	  if (counter_ < 9) {
+	    counter_++;
+	    return;
+	  }
+		counter_ = 0;
 		//Get image from camera    		
 		cv_bridge::CvImagePtr cv_ptr;
     		try
@@ -63,7 +69,6 @@ public:
 		std::vector<cv::KeyPoint> Rballs = findObjects(&img, 0);
 		std::vector<cv::KeyPoint> Gballs = findObjects(&img, 1);
 		pubLocations(transform, Rballs, Gballs);
-		
   	}
 
 	std::vector<cv::KeyPoint> findObjects(IplImage *imageBGR, int color) //TODO: Add blue area
@@ -106,7 +111,7 @@ public:
 	
 		//Set up the Red blob detector parameters
 		cv::SimpleBlobDetector::Params params;
-		params.minDistBetweenBlobs = 10.0f;
+		params.minDistBetweenBlobs = 25.0f;
 		params.filterByInertia = false;
 		params.filterByConvexity = false;
 		params.filterByColor = true;
@@ -178,7 +183,7 @@ public:
     float camXmax = 56.0;
     float imgYmax = 480.0;
     float imgXmax = 640.0;
-    float camAng = 45.0;
+    float camAng = 25.0;
     float camDgrd = 0.3;
     float camDaxl = 0.1;
     
@@ -190,7 +195,7 @@ public:
     for(int i = 0; i < keypointsR.size(); i++)
     {
       //Calculate object vertical angle from centre of camera
-      float ya = imgYmax / 2 - keypointsR[i].pt.y;
+      float ya = imgYmax / 2 - (imgYmax - keypointsR[i].pt.y);
       float yb = imgYmax / 2;
       float alpha = ya / yb * camYmax / 2;
       std::cout << "yAlpha: " << alpha << std::endl;
@@ -221,6 +226,8 @@ public:
       ball.location.y = bDist * sin(bAng + tf::getYaw(transform.getRotation())) + transform.getOrigin().y();
       ball.location.z = 0;
       Balls.balls.push_back(ball);
+      
+      std::cout << "Red ball at " << bDist << " at angle " << bAng*180/PI << std::endl;
       
     }
 
@@ -254,6 +261,8 @@ public:
       ball.location.y = bDist * sin(bAng + tf::getYaw(transform.getRotation())) + transform.getOrigin().y();
       ball.location.z = 0;
       Balls.balls.push_back(ball);
+      
+      std::cout << "Green ball at " << bDist << " at angle " << bAng*180/PI << std::endl;
     }
     
     //Testing
