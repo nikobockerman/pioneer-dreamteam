@@ -22,6 +22,7 @@ public:
 private:
   void visibleBallsCallback(const competition::BallsMessage& seenBalls);
   void publishTimerCallback(const ros::TimerEvent& event);
+  void clearListsTimerCallback(const ros::TimerEvent& event);
   bool ballRemoveService(competition::removeBall::Request& req, competition::removeBall::Response& res);
   bool redBallsService(competition::Balls::Request& req, competition::Balls::Response& res);
   
@@ -32,6 +33,7 @@ private:
   ros::ServiceServer ballRemoveSrv_;
   ros::ServiceServer redBallsSrv_;
   ros::Timer publishTimer_;
+  ros::Timer clearTimer_;
   
   std::vector<competition::Ball> redBalls_;
   std::vector<competition::Ball> greenBalls_;
@@ -52,6 +54,7 @@ void BallPublisher::init()
   redBallsSrv_ = nh_.advertiseService("red_balls", &BallPublisher::redBallsService, this);
   
   publishTimer_ = nh_.createTimer(ros::Duration (PUBLISH_DELAY), &BallPublisher::publishTimerCallback, this, false, true);
+  clearTimer_ = nh_.createTimer(ros::Duration (30.0), &BallPublisher::clearListsTimerCallback, this, false, true);
 }
 
 
@@ -81,6 +84,14 @@ bool BallPublisher::redBallsService (competition::Balls::Request& req, competiti
   ballsMsg.balls = redBalls_;
   res.balls = ballsMsg;
   return true;
+}
+
+
+void BallPublisher::clearListsTimerCallback(const ros::TimerEvent& event)
+{
+  ROS_INFO("Clearing ball lists");
+  redBalls_.clear();
+  greenBalls_.clear();
 }
 
 
