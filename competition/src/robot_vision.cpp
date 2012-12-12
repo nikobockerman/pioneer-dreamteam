@@ -33,9 +33,9 @@ public:
     		image_sub_ = it_.subscribe("camera/rgb/image_color", 1, &ImageHandler::imageCb, this);
 		pub_ = nh_.advertise<competition::BallsMessage> ("visible_balls", 10, true);
 		centerSrv_ = nh_.advertiseService("alignment", &ImageHandler::centerSrv, this);
-		cv::namedWindow("Camera");
+		/*cv::namedWindow("Camera");
 		cv::namedWindow("Red");
-		cv::namedWindow("Green");
+		cv::namedWindow("Green");*/
 		
   	} 
 
@@ -53,7 +53,7 @@ public:
       			return;
     		}
     		latestImg = cv_ptr->image;
-    		cv::imshow("Camera", cv_ptr->image);
+    		//cv::imshow("Camera", cv_ptr->image);
     		
 		//Get transform
 		tf::StampedTransform transform = getTransform();
@@ -263,7 +263,7 @@ public:
     }
     
     pub_.publish(Balls);
-    cv::waitKey(0);
+    //cv::waitKey(0);
   }
   
   //Check location of closest red ball
