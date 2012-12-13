@@ -23,9 +23,10 @@ class ImageHandler
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   ros::ServiceServer centerSrv_;
-  IplImage latestImg;
+  cv::Mat latestImg;
   int counter_;
   tf::TransformListener listener;
+  ros::Time latestStamp;
 	
 
 public:
@@ -61,7 +62,8 @@ public:
       			return;
     		}
     		latestImg = cv_ptr->image;
-    		//cv::imshow("Camera", cv_ptr->image);
+    		latestStamp = msg->header.stamp;
+		//cv::imshow("Camera", cv_ptr->image);
     		
 		//Get transform
 		tf::StampedTransform transform;
@@ -277,7 +279,17 @@ public:
   //Check location of closest red ball
   bool centerSrv(competition::centerSrv::Request &req, competition::centerSrv::Response &res)
   {
-    std::vector<cv::KeyPoint> Rballs = findObjects(&latestImg, 0);
+    IplImage img = latestImg;
+    std::vector<cv::KeyPoint> Rballs = findObjects(&img, 0);
+    
+    if(Rballs.size() < 1) {
+     res.distance = -1;
+     std::cout << "No balls in sight!" << std::endl;
+     return true;
+    }
+    
+    
+    
     float cDist;
     float cAng;
     competition::Ball cBall;
@@ -293,31 +305,27 @@ public:
     float camDaxl = 0.13;
     
     tf::StampedTransform transform;
-    if(not getTransform(transform, ros::Time(0)))
+    if(not getTransform(transform, latestStamp))
       return false;
     
     for(int i = 0; i < Rballs.size(); i++)
     {
       //Calculate object vertical angle from centre of camera
-      float ya = imgYmax / 2 - Rballs[i].pt.y;
+      float ya = imgYmax / 2 - (imgYmax - Rballs[i].pt.y);
       float yb = imgYmax / 2;
       float alpha = ya / yb * camYmax / 2;
-      //std::cout << "yAlpha: " << alpha << std::endl;
-      
+	
       //Calculate angle between object and robot vertical axis, and calculate distance on the ground
       float beta = 90.0 - alpha - camAng;
       float yDist = tan(beta*PI/180) * camDgrd;
-      //std::cout << "yDist: " << yDist << std::endl;
 
       //Calculate object horizontal angle from centre of camera
       float xa = imgXmax / 2 - Rballs[i].pt.x;
-      float xb = imgXmax / 2;
+      float xb = imgXmax / 1;
       float gamma = xa / xb * camXmax / 2;
-      //std::cout << "xGamma: " << gamma << std::endl;
 
       //Calculate x-axis distance from centre of robot
       float xDist = tan(gamma*PI/180) * yDist;
-      //std::cout << "xDist: " << xDist << std::endl;
       //Calculate distance and angle in comparison to robot centre of axis
       yDist = yDist + camDaxl;
       float bDist = sqrt(xDist*xDist + yDist*yDist);
@@ -350,6 +358,7 @@ public:
 	res.ball = cBall;
       }
       
+      std::cout << std::endl << "Distance: " << res.distance << std::endl << "Angle: " << res.angle << std::endl;
       return true;
     }    
   }
