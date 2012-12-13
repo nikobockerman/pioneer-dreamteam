@@ -1,0 +1,6 @@
+<launch>
+  <!--include file="$(find competition)/launch/stack_components.launch"/-->
+  <include file="$(find competition)/launch/vision.launch"/>
+  <include file="$(find competition)/launch/action_nodes.launch"/>
+  <include file="$(find competition)/launch/main_state_machine.launch"/>
+</launch>

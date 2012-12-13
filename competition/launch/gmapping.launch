@@ -4,10 +4,10 @@
   <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" required="true" output="screen">
     <param name="maxRange" value="20.0" />
     <param name="maxUrange" value="10.0" />
-    <param name="xmin" value="-10.0" />
-    <param name="xmax" value="10.0" />
-    <param name="ymin" value="-10.0" />
-    <param name="ymax" value="10.0" />
+    <param name="xmin" value="-5.0" />
+    <param name="xmax" value="5.0" />
+    <param name="ymin" value="-5.0" />
+    <param name="ymax" value="5.0" />
     <param name="throttle_scans" value="5" />
     <param name="map_update_interval" value="5.0" />
   </node>

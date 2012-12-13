@@ -25,7 +25,7 @@ private:
   void requestStateChange(const robotstate::State& requestedState);
   
   bool driveManipulator(int command);
-  void approachBall();
+  bool approachBall();
   bool pickup();
   void driveToBase();
   
@@ -86,11 +86,16 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
   ROS_INFO("State changed from %s to state %s", robotstate::stateToString(oldState).c_str(), robotstate::stateToString(currentState()).c_str());
   switch (currentState())
   {
+    case robotstate::Startup:
+      driveManipulator(1);
+      break;
     case robotstate::Approach:
       if (oldState != robotstate::Approach)
       {
-        approachBall();
-        requestStateChange(robotstate::DriveToBall);
+        if (approachBall())
+          requestStateChange(robotstate::Pickup);
+        else
+          requestStateChange(robotstate::Explore);
       }
       break;
     case robotstate::Pickup:
@@ -115,6 +120,7 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
         bool released = driveManipulator(0);
 				if (released) {
           reverse();
+          driveManipulator(1);
 					requestStateChange(robotstate::Explore);
 				}
 				else {
@@ -130,24 +136,29 @@ void PickupStateMachine::stateChangeHandler(const robotstate::State& oldState)
 
 bool PickupStateMachine::pickup()
 {
+  driveManipulator(0);
   // Rotate until the camera sees the ball in the middle. Then use the received distance to drive straight ahead to the ball.
   // Also save the ball specified by the camera to be removed after successful pickup.
   competition::Ball ballToPickup;
   double distanceToBall = alignRobotToBall(ballToPickup);
   if (distanceToBall < 0)
+  {
+    driveManipulator(1);
     return false; 
+  }
  
   driveToBall(distanceToBall);
   
   // Try to pick up the ball which should now be under the manipulator.
   bool catched{driveManipulator(1)};
-  if (catched)
+  /*if (catched)
   {
-    competition::removeBall msg;
-    msg.request.ballToRemove = ballToPickup;
-    removeRedBallClient_.call(msg);
-    ROS_INFO("Removed ball from ballPublisher: %s", msg.response.success ? "True" : "False");
-  }
+    //competition::removeBall msg;
+    //msg.request.ballToRemove = ballToPickup;
+    //removeRedBallClient_.call(msg);
+    //ROS_INFO("Removed ball from ballPublisher: %s", msg.response.success ? "True" : "False");
+  }*/
+  reverse();
   return catched;
 }
 
@@ -158,7 +169,7 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
   const double rotateSpeed{2.0};
   const double minSpeed{0.01};
   const unsigned int rotateTimeScale{2};
-  float angleLimit = 0.004;
+  float angleLimit = 0.01;
   
   double distance{0.0};
   bool aligned{false};
@@ -195,8 +206,8 @@ double PickupStateMachine::alignRobotToBall(competition::Ball& ballToPickup)
         ROS_INFO("Turning robot");
         geometry_msgs::Twist turnMsg;
         double speed = angle*rotateSpeed;
-        if (speed < minSpeed)
-          speed = minSpeed;
+        /*if (speed < minSpeed)
+          speed = minSpeed;*/
         turnMsg.angular.z = speed; //angle*rotateSpeed; // (angle < 0 ? -rotateSpeed : rotateSpeed);
         rosariaCmdPub_.publish(turnMsg);
         
@@ -222,7 +233,7 @@ void PickupStateMachine::driveToBall(const double& distanceToBall)
   
   // TODO Configure speed and sleep time so that the end movement is as long as distanceToBall + some small threshold.
   double speed{0.1};
-  double driveTimeScale{6.25};
+  double driveTimeScale{10.0};
   
   ROS_INFO("Sending straing speed");
   geometry_msgs::Twist straight;
@@ -251,7 +262,7 @@ void PickupStateMachine::reverse()
   straight.linear.x = speed;
   rosariaCmdPub_.publish(straight);
   
-  ROS_INFO("Sleeping for %f", driveTimeScale * distanceToBall);
+  ROS_INFO("Sleeping for %f", seconds);
   // Wait until the desired distance is travelled.
   sleep(seconds);
   
@@ -392,7 +403,7 @@ bool PickupStateMachine::driveToGoal (move_base_msgs::MoveBaseGoal& goal)
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBase(bool tryStraight)
 {
-  const double distanceToOrigo = 0.31; // Distance to origo from the goal point i.e., distance from base_link to gripper
+  const double distanceToOrigo = 0.01; //0.31; // Distance to origo from the goal point i.e., distance from base_link to gripper
   
   geometry_msgs::Point origo;
   return findClosingGoal(distanceToOrigo, origo, tryStraight);
@@ -424,14 +435,16 @@ competition::Ball PickupStateMachine::findClosestRedBall(const geometry_msgs::Po
 
 move_base_msgs::MoveBaseGoal PickupStateMachine::findPointToBall(bool tryStraight)
 {
-  const double distanceToBall = 0.50; // Distance to ball before aligning
+  const double distanceToBall = 0.80; // Distance to ball before aligning
  
   // Current position
   geometry_msgs::PoseStamped currentPosition = competition::currentPosition(listener_);
   
   // Closest red ball
   competition::Ball closest = findClosestRedBall(currentPosition.pose);
- 
+  if (fabs(closest.location.x) < 0.01 and fabs(closest.location.y) < 0.01)
+    return move_base_msgs::MoveBaseGoal();
+
   return findClosingGoal(distanceToBall, closest.location, tryStraight);
 }
 
@@ -452,19 +465,22 @@ void PickupStateMachine::driveToBase()
 }
 
 
-void PickupStateMachine::approachBall()
+bool PickupStateMachine::approachBall()
 {
   bool succeeded {false};
   bool firstFailed {false};
   while (not succeeded)
   {
     move_base_msgs::MoveBaseGoal goal = findPointToBall(firstFailed);
-    
+    if (fabs(goal.target_pose.pose.position.x) < 0.01 and fabs(goal.target_pose.pose.position.y) < 0.01)
+      return false;    
+
     if (driveToGoal(goal))
       succeeded = true;
     else
       firstFailed = false;
   }
+  return true;
 }
 
 
@@ -479,7 +495,8 @@ bool PickupStateMachine::driveManipulator(int command) {
 		//std::string a = service.response.state;
 		//ROS_INFO("Response was: %s", a.c_str());
 		//return (a.compare("True") == 0/*|| a.compare("Release") == 0*/) ? true : false; 
-		return true;
+		sleep(1);
+                return true;
 	}
 	return false;
 }

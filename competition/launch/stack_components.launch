@@ -5,8 +5,8 @@
   <node pkg="LMS1xx" type="LMS100" name="LMS100" required="true">
     <param name="host" type="str" value="192.168.0.1"/>
   </node>
-  <!--node pkg="competition" type="laserposition" name="laserposition" required="true" /-->
   <node pkg="rosbridge_server" type="rosbridge.py" name="rosbridge_server" required="true" />
-  <!--include file="$(find competition)/launch/move_base.launch"/-->
-  <!--include file="$(find competition)/launch/gmapping.launch"/-->
+  <include file="$(find competition)/launch/move_base.launch"/>
+  <include file="$(find competition)/launch/gmapping.launch"/>
+  <include file="$(find openni_launch)/launch/openni.launch"/>
 </launch>

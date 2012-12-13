@@ -80,6 +80,7 @@ void MainStateMachine::startUp (const ros::TimerEvent& event)
 
 void MainStateMachine::stateChangeRequestCallback(const competition::StateMessage& requestedNewState)
 {
+  ROS_INFO("State change request received to state %s", robotstate::stateToString(robotstate::uintToState(requestedNewState.new_state)).c_str());
   robotstate::State newState = robotstate::uintToState(requestedNewState.new_state);
   if (newState == robotstate::Shutdown or newState == robotstate::Undefined or newState == robotstate::Startup)
     return;
@@ -89,14 +90,28 @@ void MainStateMachine::stateChangeRequestCallback(const competition::StateMessag
       currentState(robotstate::Approach);
   }
   currentState(newState);
+  competition::StateMessage msg;
+  msg.new_state = currentState();
+  statePub_.publish (msg);
 }
 
 
 
 void MainStateMachine::redBallsCallback (const competition::BallsMessage& redBallsList)
 {
+  ROS_INFO("Red ball message received");
+  ROS_INFO("Number of balls: %d", redBallsList.balls.size());
   if (not redBallsList.balls.empty())
+  {
     redBallsFound_ = true;
+    if (currentState() == robotstate::Explore)
+    {
+      currentState(robotstate::Approach);
+      competition::StateMessage msg;
+      msg.new_state = currentState();
+      statePub_.publish (msg);
+    }
+  }
   else
     redBallsFound_ = false;
 }

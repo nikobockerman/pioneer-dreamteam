@@ -108,19 +108,19 @@ void BallPublisher::publishTimerCallback (const ros::TimerEvent& event)
   greenMsg.header.frame_id = "/map";
   greenMsg.header.stamp = ros::Time::now();
   greenMsg.height = 1;
-  greenMsg.width = greenBalls_.size();
+  greenMsg.width = 0;// greenBalls_.size();
   for (competition::Ball ball : greenBalls_)
   {
     pcl::PointXYZ point(ball.location.x,ball.location.y,0.0);
     /*point.x = ball.location.x;
     point.y = ball.location.y;*/
-    greenMsg.points.push_back(point);
+    //greenMsg.points.push_back(point);
   }
   pointCloudPub_.publish(greenMsg);
 }
 
 
-void checkNewBalls(std::vector<competition::Ball>& mainList, std::vector<competition::Ball>& newList)
+void checkNewBalls(std::vector<competition::Ball>& mainList, std::vector<competition::Ball>& newList, const bool checkOrigo)
 {
   for (competition::Ball ball : newList)
   {
@@ -136,7 +136,11 @@ void checkNewBalls(std::vector<competition::Ball>& mainList, std::vector<competi
       }
     }
     if (newBall)
-      mainList.push_back(ball);
+    {
+      geometry_msgs::Point origo;
+      if (not (checkOrigo &&  competition::distanceBetweenPoints(origo, ball.location) < 0.3))
+      	mainList.push_back(ball);
+    }
   }
 }
 
@@ -155,8 +159,8 @@ void BallPublisher::visibleBallsCallback (const competition::BallsMessage& seenB
       newGreens.push_back(ball);
   }
   
-  checkNewBalls(greenBalls_, newGreens);
-  checkNewBalls(redBalls_, newReds);
+  checkNewBalls(greenBalls_, newGreens, false);
+  checkNewBalls(redBalls_, newReds, true);
   
   ROS_INFO("Balls on green list: %d", greenBalls_.size());
   ROS_INFO("Balls on red list: %d", redBalls_.size());

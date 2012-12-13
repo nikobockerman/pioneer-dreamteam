@@ -44,12 +44,12 @@ public:
 
 	void imageCb(const sensor_msgs::ImageConstPtr& msg)
 	{
-	  /*if (counter_ < 9) {
+	  if (counter_ < 9) {
 	    counter_++;
 	    return;
 	  }
 	  
-		counter_ = 0;*/
+		counter_ = 0;
 		//Get image from camera    		
 		cv_bridge::CvImagePtr cv_ptr;
     		try

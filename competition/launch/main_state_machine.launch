@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="competition" type="statemachine" name="statemachine" required="true" output="screen" />
+</launch>

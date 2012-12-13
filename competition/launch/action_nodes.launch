@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="competition" type="explore" name="explore" required="true" output="screen" />
+  <node pkg="competition" type="ballcatcher" name="ballcatcher" required="true" output="screen" />
+  <node pkg="competition" type="usbCom_Server" name="usbcom_server" required="true" output="screen" />
+</launch>

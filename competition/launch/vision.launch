@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="competition" type="vision" name="vision" required="true" output="screen" />
+  <node pkg="competition" type="ballPublisher" name="ballPublisher" required="true" output="screen" />
+</launch>
