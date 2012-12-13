@@ -348,8 +348,9 @@ public:
 	cAng = bAng;
 	cBall = ball;
       }
-      
-      if (cDist > 1) {
+    }  
+    
+    if (cDist > 1) {
 	cDist = -1;
       }
       else {
@@ -357,10 +358,8 @@ public:
 	res.angle = cAng;
 	res.ball = cBall;
       }
-      
-      std::cout << std::endl << "Distance: " << res.distance << std::endl << "Angle: " << res.angle << std::endl;
-      return true;
-    }    
+    std::cout << std::endl << "Distance: " << res.distance << std::endl << "Angle: " << res.angle << std::endl;
+    return true;
   }
 };
 
